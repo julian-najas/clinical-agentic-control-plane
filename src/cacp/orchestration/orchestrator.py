@@ -5,15 +5,17 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
-from cacp.gitops.github_pr import GitHubPRCreator
+if TYPE_CHECKING:
+    from cacp.gitops.github_pr import GitHubPRCreator
+    from cacp.settings import Settings
+
 from cacp.gitops.manifest import build_execution_plan
 from cacp.orchestration.agents.compliance_agent import ComplianceAgent
 from cacp.orchestration.agents.revenue_agent import RevenueAgent
 from cacp.scoring.risk_scorer import RiskScorer
-from cacp.settings import Settings
 from cacp.signing.hmac import sign_payload
 
 __all__ = ["Orchestrator", "OrchestratorResult"]
@@ -171,7 +173,7 @@ def _resolve_scheduled_times(
     try:
         appt_dt = datetime.fromisoformat(appointment_iso)
     except (ValueError, TypeError):
-        appt_dt = datetime.now(timezone.utc) + timedelta(days=1)
+        appt_dt = datetime.now(UTC) + timedelta(days=1)
 
     resolved: list[dict[str, Any]] = []
     for action in actions:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -14,6 +14,9 @@ from cacp.gitops.github_pr import GitHubPRCreator
 from cacp.logging import configure_logging, new_correlation_id
 from cacp.orchestration.orchestrator import Orchestrator
 from cacp.settings import Settings
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 __all__ = ["create_app"]
 

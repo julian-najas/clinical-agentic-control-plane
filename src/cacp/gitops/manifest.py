@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 __all__ = ["build_execution_plan"]
@@ -43,5 +43,5 @@ def build_execution_plan(
         "actions": plan_actions,
         "risk_level": risk_level,
         "hmac_signature": "",  # filled after signing
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }

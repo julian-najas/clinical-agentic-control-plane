@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import redis
+if TYPE_CHECKING:
+    import redis
 
 from cacp.queue.enqueue import QUEUE_NAME
 

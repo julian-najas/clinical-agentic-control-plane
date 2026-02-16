@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import redis
+if TYPE_CHECKING:
+    import redis
 
 __all__ = ["enqueue_action"]
 

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
-import psycopg
+if TYPE_CHECKING:
+    import psycopg
 
 __all__ = ["EventStore"]
 
@@ -26,7 +27,7 @@ class EventStore:
     ) -> str:
         """Append an event and return its event_id."""
         event_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         with self._conn.cursor() as cur:
             cur.execute(
