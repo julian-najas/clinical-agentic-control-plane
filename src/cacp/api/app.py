@@ -14,6 +14,7 @@ from cacp.gitops.github_pr import GitHubPRCreator
 from cacp.logging import configure_logging, new_correlation_id
 from cacp.orchestration.orchestrator import Orchestrator
 from cacp.settings import Settings
+from cacp.storage.event_store import InMemoryEventStore
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -55,12 +56,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             repo=settings.github_repo,
         )
 
+    # Build event store (in-memory default; PG wired separately if pg_dsn set)
+    event_store = InMemoryEventStore()
+
     # Build orchestrator with all dependencies
     app.state.orchestrator = Orchestrator(
         settings=settings,
         github_pr=github_pr,
+        event_store=event_store,
     )
     app.state.settings = settings
+    app.state.event_store = event_store
 
     yield
 

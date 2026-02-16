@@ -6,6 +6,7 @@ import pytest
 
 from cacp.orchestration.orchestrator import Orchestrator
 from cacp.settings import Settings
+from cacp.storage.event_store import InMemoryEventStore
 
 
 class TestOrchestrator:
@@ -15,7 +16,11 @@ class TestOrchestrator:
             github_token="",  # no PR creation in tests
             environment="dev",
         )
-        self.orchestrator = Orchestrator(settings=self.settings)
+        self.event_store = InMemoryEventStore()
+        self.orchestrator = Orchestrator(
+            settings=self.settings,
+            event_store=self.event_store,
+        )
 
     @pytest.mark.anyio()
     async def test_full_pipeline(self) -> None:
@@ -40,9 +45,30 @@ class TestOrchestrator:
         assert result.pr_url is None  # no GitHub token
 
     @pytest.mark.anyio()
+    async def test_events_emitted_in_order(self) -> None:
+        await self.orchestrator.process_appointment(
+            {
+                "appointment_id": "APT-EVT-001",
+                "patient_id": "PAT-001",
+                "clinic_id": "CLINIC-A",
+                "scheduled_at": "2026-03-18T10:00:00+00:00",
+                "previous_no_shows": 1,
+            }
+        )
+        events = self.event_store.list_events(aggregate_id="APT-EVT-001")
+        # list_events returns newest-first; reverse for chronological
+        types = [e["event_type"] for e in reversed(events)]
+        assert types == [
+            "appointment_received",
+            "risk_scored",
+            "proposal_created",
+            "proposal_signed",
+        ]
+
+    @pytest.mark.anyio()
     async def test_unsigned_without_secret(self) -> None:
         settings = Settings(hmac_secret="", github_token="", environment="dev")
-        orch = Orchestrator(settings=settings)
+        orch = Orchestrator(settings=settings, event_store=InMemoryEventStore())
         result = await orch.process_appointment(
             {
                 "appointment_id": "APT-002",

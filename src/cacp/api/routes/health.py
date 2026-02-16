@@ -5,7 +5,10 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
+from starlette.responses import JSONResponse
+
+from cacp.healthchecks import check_opa, check_postgres, check_redis
 
 router = APIRouter()
 
@@ -56,18 +59,23 @@ async def health() -> dict[str, str]:
 
 
 @router.get("/ready", summary="Readiness probe", operation_id="ready")
-async def ready() -> dict[str, str | bool]:
+async def ready(request: Request) -> JSONResponse:
     """Readiness: downstream dependencies reachable.
 
-    TODO: wire actual PG/Redis/OPA connectivity checks.
-    For now returns ok so K8s doesn't block rollout.
+    Returns 200 when all checks pass, 503 otherwise.
     """
-    return {
-        "status": "ok",
-        "postgres": True,
-        "redis": True,
-        "opa": True,
-    }
+    settings = request.app.state.settings
+    pg = await check_postgres(settings.pg_dsn)
+    rd = await check_redis(settings.redis_url)
+    opa = await check_opa(settings.opa_url)
+
+    all_ok = pg and rd and opa
+    checks = {"postgres": pg, "redis": rd, "opa": opa}
+
+    return JSONResponse(
+        status_code=200 if all_ok else 503,
+        content={"ready": all_ok, "checks": checks},
+    )
 
 
 @router.get("/metrics", summary="Prometheus metrics", operation_id="metrics")

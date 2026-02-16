@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from cacp.gitops.github_pr import GitHubPRCreator
     from cacp.settings import Settings
+    from cacp.storage.event_store import EventStoreProtocol
 
 from cacp.gitops.manifest import build_execution_plan
 from cacp.orchestration.agents.compliance_agent import ComplianceAgent
@@ -42,12 +43,27 @@ class Orchestrator:
         self,
         settings: Settings,
         github_pr: GitHubPRCreator | None = None,
+        event_store: EventStoreProtocol | None = None,
     ) -> None:
         self._settings = settings
         self._scorer = RiskScorer()
         self._revenue = RevenueAgent()
         self._compliance = ComplianceAgent()
         self._github_pr = github_pr
+        self._events = event_store
+
+    def _emit(self, aggregate_id: str, event_type: str, payload: dict[str, Any]) -> None:
+        """Fire-and-forget event append (swallows errors in prod)."""
+        if self._events is None:
+            return
+        try:
+            self._events.append(
+                aggregate_id=aggregate_id,
+                event_type=event_type,
+                payload=payload,
+            )
+        except Exception:
+            logger.warning("Event store append failed for %s", event_type, exc_info=True)
 
     async def process_appointment(
         self,
@@ -64,6 +80,10 @@ class Orchestrator:
         6. Open PR in clinic-gitops-config
         """
         proposal_id = str(uuid.uuid4())
+        appt_id = appointment.get("appointment_id", proposal_id)
+
+        # ── Event: appointment_received ────────────────────────────
+        self._emit(appt_id, "appointment_received", appointment)
 
         # 1 ── Risk scoring ─────────────────────────────────────────
         risk = self._scorer.score(appointment)
@@ -71,8 +91,9 @@ class Orchestrator:
             "Risk scored: %s (%.4f) for %s",
             risk.level,
             risk.score,
-            appointment.get("appointment_id"),
+            appt_id,
         )
+        self._emit(appt_id, "risk_scored", {"score": risk.score, "level": risk.level})
 
         # 2 ── Action sequence ──────────────────────────────────────
         clinic_profile = {
@@ -127,6 +148,13 @@ class Orchestrator:
             environment=self._settings.environment,
         )
 
+        # ── Event: proposal_created ─────────────────────────────
+        self._emit(
+            appt_id,
+            "proposal_created",
+            {"proposal_id": proposal_id, "actions": len(resolved_actions)},
+        )
+
         # 5 ── HMAC sign ───────────────────────────────────────────
         if not self._settings.hmac_secret:
             logger.warning("HMAC_SECRET not set — plan will be unsigned")
@@ -134,6 +162,11 @@ class Orchestrator:
         else:
             signature = sign_payload(plan, self._settings.hmac_secret)
         plan["hmac_signature"] = signature
+        self._emit(
+            appt_id,
+            "proposal_signed",
+            {"proposal_id": proposal_id, "signed": bool(signature)},
+        )
 
         # 6 ── Open PR ─────────────────────────────────────────────
         pr_url: str | None = None
@@ -146,6 +179,7 @@ class Orchestrator:
                 )
                 pr_url = pr_result.pr_url
                 logger.info("PR created: %s", pr_url)
+                self._emit(appt_id, "pr_opened", {"proposal_id": proposal_id, "pr_url": pr_url})
             except Exception:
                 logger.exception("Failed to create PR for proposal %s", proposal_id)
         else:

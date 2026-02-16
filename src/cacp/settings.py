@@ -31,3 +31,6 @@ class Settings(BaseSettings):
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
+
+    # GitHub Webhook
+    github_webhook_secret: str = ""
