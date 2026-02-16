@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
-from cacp.api.routes import health, ingest, webhook_github, webhook_twilio
+from cacp.api.routes import demo, health, ingest, webhook_github, webhook_twilio
 from cacp.gitops.github_pr import GitHubPRCreator
 from cacp.logging import configure_logging, new_correlation_id
 from cacp.orchestration.orchestrator import Orchestrator
@@ -87,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(ingest.router, tags=["ingest"])
     app.include_router(webhook_github.router, tags=["webhook"])
     app.include_router(webhook_twilio.router, tags=["webhook"])
+    app.include_router(demo.router, tags=["demo"])
     return app
 
 
