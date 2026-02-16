@@ -1,0 +1,8 @@
+# OPA configuration for local development.
+# Decision logging enabled for debugging.
+
+decision_logs:
+  console: true
+
+status:
+  console: true

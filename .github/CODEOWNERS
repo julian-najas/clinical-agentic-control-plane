@@ -1,0 +1,9 @@
+# CODEOWNERS — clinical-agentic-control-plane
+# All changes require review from the platform owner.
+
+* @julian-najas
+
+# Policy and signing modules require explicit review
+src/cacp/policy/   @julian-najas
+src/cacp/signing/  @julian-najas
+src/cacp/gitops/   @julian-najas
