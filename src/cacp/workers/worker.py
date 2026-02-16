@@ -21,7 +21,7 @@ class Worker:
 
     def __init__(
         self,
-        redis_client: redis.Redis,  # type: ignore[type-arg]
+        redis_client: redis.Redis[bytes],
         adapters: dict[str, Any] | None = None,
     ) -> None:
         self._redis = redis_client
@@ -33,7 +33,7 @@ class Worker:
         if raw is None:
             return None
 
-        action = json.loads(raw)  # type: ignore[arg-type]
+        action = json.loads(raw)
         action_type = action.get("action_type", "unknown")
 
         adapter = self._adapters.get(action_type)
@@ -49,11 +49,11 @@ class Worker:
         """Blocking loop — dequeue actions until stopped."""
         logger.info("Worker started, listening on queue: %s", QUEUE_NAME)
         while True:
-            result = self._redis.blpop(QUEUE_NAME, timeout=int(timeout))
+            result = self._redis.blpop([QUEUE_NAME], timeout=int(timeout))
             if result is None:
                 continue
             _, raw = result
-            action = json.loads(raw)  # type: ignore[arg-type]
+            action = json.loads(raw)
             action_type = action.get("action_type", "unknown")
             adapter = self._adapters.get(action_type)
             if adapter:

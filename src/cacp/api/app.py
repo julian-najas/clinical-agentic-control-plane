@@ -24,9 +24,7 @@ __all__ = ["create_app"]
 class ObservabilityMiddleware(BaseHTTPMiddleware):
     """Inject correlation_id and record request metrics."""
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         cid = request.headers.get("x-correlation-id") or new_correlation_id()
 
         start = time.perf_counter()

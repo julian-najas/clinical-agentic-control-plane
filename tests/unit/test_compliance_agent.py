@@ -26,9 +26,7 @@ class TestComplianceAgent:
 
     @pytest.mark.anyio()
     async def test_over_limit_rejected(self) -> None:
-        actions = [
-            {"action_type": f"action_{i}", "channel": "sms"} for i in range(5)
-        ]
+        actions = [{"action_type": f"action_{i}", "channel": "sms"} for i in range(5)]
         result = await self.agent.validate(
             actions=actions,
             role="agent",

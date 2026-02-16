@@ -16,9 +16,7 @@ _EXCLUDE = {"hmac_signature"}
 def sign_payload(payload: dict[str, Any], secret: str) -> str:
     """Sign a payload with HMAC-SHA256 and return the hex digest."""
     canonical = canonicalise(payload, exclude_keys=_EXCLUDE)
-    return hmac_mod.new(
-        secret.encode(), canonical.encode(), hashlib.sha256
-    ).hexdigest()
+    return hmac_mod.new(secret.encode(), canonical.encode(), hashlib.sha256).hexdigest()
 
 
 def verify_signature(payload: dict[str, Any], secret: str) -> bool:

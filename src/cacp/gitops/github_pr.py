@@ -74,9 +74,7 @@ class GitHubPRCreator:
         await self._create_branch(branch_name, base_sha)
 
         # 3 ── Commit plan file ────────────────────────────────────
-        content_b64 = base64.b64encode(
-            json.dumps(plan_manifest, indent=2).encode()
-        ).decode()
+        content_b64 = base64.b64encode(json.dumps(plan_manifest, indent=2).encode()).decode()
 
         await self._create_file(
             path=file_path,
@@ -94,10 +92,7 @@ class GitHubPRCreator:
         # 4 ── Create PR ──────────────────────────────────────────
         pr = await self._create_pull_request(
             head=branch_name,
-            title=(
-                f"proposal: {plan_id[:8]} "
-                f"({plan_manifest.get('risk_level', '?')} risk)"
-            ),
+            title=(f"proposal: {plan_id[:8]} ({plan_manifest.get('risk_level', '?')} risk)"),
             body=self._build_pr_body(plan_manifest, environment),
         )
 
@@ -110,10 +105,8 @@ class GitHubPRCreator:
     # ── GitHub API helpers ────────────────────────────────────────
 
     async def _get_default_branch_sha(self) -> str:
-        resp = await self._request(
-            "GET", f"{self._repo_path}/git/ref/heads/main"
-        )
-        return resp["object"]["sha"]
+        resp = await self._request("GET", f"{self._repo_path}/git/ref/heads/main")
+        return str(resp["object"]["sha"])
 
     async def _create_branch(self, name: str, sha: str) -> None:
         await self._request(
@@ -139,9 +132,7 @@ class GitHubPRCreator:
             },
         )
 
-    async def _create_pull_request(
-        self, head: str, title: str, body: str
-    ) -> dict[str, Any]:
+    async def _create_pull_request(self, head: str, title: str, body: str) -> dict[str, Any]:
         return await self._request(
             "POST",
             f"{self._repo_path}/pulls",
@@ -174,14 +165,20 @@ class GitHubPRCreator:
                 if attempt < _MAX_RETRIES:
                     logger.warning(
                         "GitHub API %s %s failed (attempt %d): %s",
-                        method, url, attempt + 1, exc,
+                        method,
+                        url,
+                        attempt + 1,
+                        exc,
                     )
             except httpx.HTTPError as exc:
                 last_exc = exc
                 if attempt < _MAX_RETRIES:
                     logger.warning(
                         "GitHub API %s %s error (attempt %d): %s",
-                        method, url, attempt + 1, exc,
+                        method,
+                        url,
+                        attempt + 1,
+                        exc,
                     )
         raise last_exc  # type: ignore[misc]
 

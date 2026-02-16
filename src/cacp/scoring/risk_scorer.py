@@ -83,9 +83,7 @@ class RiskScorer:
         factors["first_visit"] = 0.6 if appointment.get("is_first_visit", False) else 0.0
 
         # 3 ── Lead time (days until appointment) ─────────────────
-        factors["lead_time"] = self._lead_time_signal(
-            appointment.get("scheduled_at", "")
-        )
+        factors["lead_time"] = self._lead_time_signal(appointment.get("scheduled_at", ""))
 
         # 4 ── Time of day ────────────────────────────────────────
         hour = self._extract_hour(appointment.get("scheduled_at", ""))

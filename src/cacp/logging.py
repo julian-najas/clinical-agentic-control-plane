@@ -59,7 +59,7 @@ def configure_logging(*, json_output: bool = True, level: str = "INFO") -> None:
     structlog.configure(
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(
-            structlog.get_level_from_name(level)
+            structlog.get_level_from_name(level)  # type: ignore[operator]
         ),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
@@ -69,4 +69,4 @@ def configure_logging(*, json_output: bool = True, level: str = "INFO") -> None:
 
 def get_logger(**kwargs: Any) -> structlog.BoundLogger:
     """Get a bound logger with optional initial context."""
-    return structlog.get_logger(**kwargs)
+    return structlog.get_logger(**kwargs)  # type: ignore[no-any-return]

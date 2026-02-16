@@ -147,9 +147,7 @@ class Orchestrator:
                 pr_url = pr_result.pr_url
                 logger.info("PR created: %s", pr_url)
             except Exception:
-                logger.exception(
-                    "Failed to create PR for proposal %s", proposal_id
-                )
+                logger.exception("Failed to create PR for proposal %s", proposal_id)
         else:
             logger.info("GitHub PR creation skipped (no token configured)")
 

@@ -22,9 +22,7 @@ def _app_with_orchestrator():  # type: ignore[no-untyped-def]
 @pytest.mark.anyio()
 async def test_ingest_returns_proposal() -> None:
     app = _app_with_orchestrator()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post(
             "/ingest",
             json={
@@ -50,9 +48,7 @@ async def test_ingest_returns_proposal() -> None:
 @pytest.mark.anyio()
 async def test_ingest_missing_fields_fails() -> None:
     app = _app_with_orchestrator()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/ingest", json={"appointment_id": "X"})
     assert resp.status_code == 422  # validation error
 
@@ -60,9 +56,7 @@ async def test_ingest_missing_fields_fails() -> None:
 @pytest.mark.anyio()
 async def test_ingest_high_risk_patient() -> None:
     app = _app_with_orchestrator()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post(
             "/ingest",
             json={

@@ -49,9 +49,7 @@ class IngestResponse(BaseModel):
     summary="Ingest an appointment for no-show risk assessment",
     operation_id="ingest_appointment",
 )
-async def ingest_appointment(
-    appointment: AppointmentIn, request: Request
-) -> IngestResponse:
+async def ingest_appointment(appointment: AppointmentIn, request: Request) -> IngestResponse:
     """Receive an appointment → score risk → generate proposal → open PR."""
     orchestrator = request.app.state.orchestrator
     result = await orchestrator.process_appointment(appointment.model_dump())
