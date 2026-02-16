@@ -1,5 +1,8 @@
 # clinical-agentic-control-plane
 
+> **Public by design** — This repository is public for demo / portfolio purposes.
+> It contains **no secrets, credentials, or PHI**. Production configurations live in private infrastructure.
+
 **PR-first agentic control plane** for clinical no-show reduction.
 
 This service ingests appointments, scores risk, generates action proposals,
