@@ -21,7 +21,7 @@ class Worker:
 
     def __init__(
         self,
-        redis_client: redis.Redis[bytes],
+        redis_client: redis.Redis,  # type: ignore[type-arg]
         adapters: dict[str, Any] | None = None,
     ) -> None:
         self._redis = redis_client
@@ -33,7 +33,7 @@ class Worker:
         if raw is None:
             return None
 
-        action = json.loads(raw)
+        action = json.loads(raw)  # type: ignore[arg-type]
         action_type = action.get("action_type", "unknown")
 
         adapter = self._adapters.get(action_type)
@@ -52,8 +52,8 @@ class Worker:
             result = self._redis.blpop([QUEUE_NAME], timeout=int(timeout))
             if result is None:
                 continue
-            _, raw = result
-            action = json.loads(raw)
+            _, raw = result  # type: ignore[misc]
+            action = json.loads(raw)  # type: ignore[arg-type]
             action_type = action.get("action_type", "unknown")
             adapter = self._adapters.get(action_type)
             if adapter:
