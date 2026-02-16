@@ -15,6 +15,10 @@ def _mock_redis(queue_items: list[dict[str, Any]]) -> MagicMock:
     mock = MagicMock()
     encoded = [json.dumps(item) for item in queue_items]
     mock.lpop.side_effect = encoded + [None]
+    # Rate-limit pipeline stub (count=0 → under limit)
+    pipe_mock = MagicMock()
+    pipe_mock.execute.return_value = [None, 0, None, None]
+    mock.pipeline.return_value = pipe_mock
     return mock
 
 

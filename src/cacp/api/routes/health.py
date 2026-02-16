@@ -24,6 +24,10 @@ _metrics: dict[str, Any] = {
     "opa_errors": 0,
     "queue_depth": 0,
     "start_time": time.time(),
+    # Business metrics — Sprint 3
+    "actions_sent": {},  # channel → count
+    "actions_blocked": {},  # reason → count
+    "actions_failed": {},  # provider → count
 }
 
 
@@ -47,6 +51,21 @@ def record_opa_error() -> None:
 
 def set_queue_depth(depth: int) -> None:
     _metrics["queue_depth"] = depth
+
+
+def record_action_sent(channel: str) -> None:
+    """Increment counter for successfully sent actions."""
+    _metrics["actions_sent"][channel] = _metrics["actions_sent"].get(channel, 0) + 1
+
+
+def record_action_blocked(reason: str) -> None:
+    """Increment counter for blocked actions."""
+    _metrics["actions_blocked"][reason] = _metrics["actions_blocked"].get(reason, 0) + 1
+
+
+def record_action_failed(provider: str) -> None:
+    """Increment counter for failed actions."""
+    _metrics["actions_failed"][provider] = _metrics["actions_failed"].get(provider, 0) + 1
 
 
 # ──────────── Endpoints ────────────
@@ -118,5 +137,32 @@ async def metrics() -> Response:
         f"cacp_queue_depth {_metrics['queue_depth']}",
         "",
     ]
+
+    # Business metrics — actions sent per channel
+    lines += [
+        "# HELP cacp_actions_sent_total Actions successfully sent",
+        "# TYPE cacp_actions_sent_total counter",
+    ]
+    for ch, cnt in sorted(_metrics["actions_sent"].items()):
+        lines.append(f'cacp_actions_sent_total{{channel="{ch}"}} {cnt}')
+    lines.append("")
+
+    # Actions blocked per reason
+    lines += [
+        "# HELP cacp_actions_blocked_total Actions blocked by rails",
+        "# TYPE cacp_actions_blocked_total counter",
+    ]
+    for reason, cnt in sorted(_metrics["actions_blocked"].items()):
+        lines.append(f'cacp_actions_blocked_total{{reason="{reason}"}} {cnt}')
+    lines.append("")
+
+    # Actions failed per provider
+    lines += [
+        "# HELP cacp_actions_failed_total Actions failed at provider",
+        "# TYPE cacp_actions_failed_total counter",
+    ]
+    for prov, cnt in sorted(_metrics["actions_failed"].items()):
+        lines.append(f'cacp_actions_failed_total{{provider="{prov}"}} {cnt}')
+    lines.append("")
 
     return Response(content="\n".join(lines), media_type="text/plain; charset=utf-8")

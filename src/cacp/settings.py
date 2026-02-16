@@ -34,3 +34,17 @@ class Settings(BaseSettings):
 
     # GitHub Webhook
     github_webhook_secret: str = ""
+
+    # Twilio SMS (feature-flagged)
+    twilio_enabled: bool = False
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""
+
+    # Quiet-hours guard (24h clock, local time)
+    quiet_hours_start: int = 22
+    quiet_hours_end: int = 8
+
+    # Per-patient SMS rate limit (messages per window)
+    sms_rate_limit: int = 3
+    sms_rate_window_seconds: int = 86400
