@@ -10,7 +10,10 @@ from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from cacp.api.routes import health, ingest, webhook_github
+from cacp.gitops.github_pr import GitHubPRCreator
 from cacp.logging import configure_logging, new_correlation_id
+from cacp.orchestration.orchestrator import Orchestrator
+from cacp.settings import Settings
 
 __all__ = ["create_app"]
 
@@ -40,8 +43,29 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Startup
     configure_logging(json_output=True, level="INFO")
+    settings = Settings()
+
+    # Build GitHub PR creator (if token available)
+    github_pr: GitHubPRCreator | None = None
+    if settings.github_token:
+        github_pr = GitHubPRCreator(
+            token=settings.github_token,
+            owner=settings.github_owner,
+            repo=settings.github_repo,
+        )
+
+    # Build orchestrator with all dependencies
+    app.state.orchestrator = Orchestrator(
+        settings=settings,
+        github_pr=github_pr,
+    )
+    app.state.settings = settings
+
     yield
-    # Shutdown: close connections here
+
+    # Shutdown
+    if github_pr:
+        await github_pr.close()
 
 
 def create_app() -> FastAPI:

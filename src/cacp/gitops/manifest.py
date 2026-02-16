@@ -1,28 +1,47 @@
-"""Build plan manifests for clinic-gitops-config."""
+"""Build execution plan manifests for clinic-gitops-config."""
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-__all__ = ["build_plan_manifest"]
+__all__ = ["build_execution_plan"]
 
 
-def build_plan_manifest(
+def build_execution_plan(
+    proposal_id: str,
     clinic_id: str,
+    patient_id: str,
+    appointment_id: str,
     actions: list[dict[str, Any]],
     risk_level: str,
     environment: str = "dev",
 ) -> dict[str, Any]:
-    """Build an execution plan manifest conforming to execution_plan.schema.json."""
+    """Build an execution plan conforming to execution_plan.schema.json.
+
+    The plan is the artefact committed to clinic-gitops-config.
+    Each action embeds patient_id and appointment_id (schema requires them).
+    """
+    plan_actions: list[dict[str, Any]] = []
+    for action in actions:
+        plan_actions.append(
+            {
+                "action_type": action["action_type"],
+                "patient_id": patient_id,
+                "appointment_id": appointment_id,
+                "channel": action["channel"],
+                "template": action.get("template", ""),
+                "scheduled_at": action.get("scheduled_at", ""),
+            }
+        )
+
     return {
-        "plan_id": str(uuid.uuid4()),
-        "version": "0.1.0",
+        "plan_id": proposal_id,
+        "version": "1.0.0",
         "environment": environment,
         "clinic_id": clinic_id,
-        "actions": actions,
+        "actions": plan_actions,
         "risk_level": risk_level,
-        "hmac_signature": "",  # to be filled by signing module
+        "hmac_signature": "",  # filled after signing
         "created_at": datetime.now(timezone.utc).isoformat(),
     }

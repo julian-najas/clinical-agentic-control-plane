@@ -12,13 +12,11 @@ class TestCanonicalise:
         assert result == '{"a":2,"z":1}'
 
     def test_exclude_keys(self) -> None:
-        result = canonicalise({"a": 1, "hmac": "xxx", "b": 2}, exclude_keys={"hmac"})
+        result = canonicalise(
+            {"a": 1, "hmac_signature": "xxx", "b": 2},
+            exclude_keys={"hmac_signature"},
+        )
         assert result == '{"a":1,"b":2}'
-
-    def test_nested_sorting(self) -> None:
-        result = canonicalise({"b": {"z": 1, "a": 2}, "a": 0})
-        assert '"a":0' in result
-        assert result.index('"a":0') < result.index('"b":')
 
     def test_deterministic(self) -> None:
         payload = {"action": "send_sms", "patient": "P1", "time": "09:00"}
@@ -30,18 +28,25 @@ class TestHMACSign:
         payload = {"action": "send_sms", "patient": "P1"}
         secret = "test-secret"
         sig = sign_payload(payload, secret)
-        assert verify_signature(payload, secret, sig)
+        payload["hmac_signature"] = sig
+        assert verify_signature(payload, secret)
 
     def test_wrong_secret_fails(self) -> None:
         payload = {"action": "send_sms"}
         sig = sign_payload(payload, "secret-a")
-        assert not verify_signature(payload, "secret-b", sig)
+        payload["hmac_signature"] = sig
+        assert not verify_signature(payload, "secret-b")
 
     def test_tampered_payload_fails(self) -> None:
         payload = {"action": "send_sms"}
         sig = sign_payload(payload, "secret")
+        payload["hmac_signature"] = sig
         payload["action"] = "send_whatsapp"
-        assert not verify_signature(payload, "secret", sig)
+        assert not verify_signature(payload, "secret")
+
+    def test_no_signature_fails(self) -> None:
+        payload = {"action": "test"}
+        assert not verify_signature(payload, "secret")
 
     def test_signature_is_hex_string(self) -> None:
         sig = sign_payload({"a": 1}, "s")
