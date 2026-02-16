@@ -28,6 +28,10 @@ _metrics: dict[str, Any] = {
     "actions_sent": {},  # channel → count
     "actions_blocked": {},  # reason → count
     "actions_failed": {},  # provider → count
+    # Delivery metrics — Sprint 4
+    "sms_delivery": {},  # status → count  (queued/sent/delivered/failed)
+    "dlq_depth": 0,
+    "retries_scheduled": 0,
 }
 
 
@@ -66,6 +70,19 @@ def record_action_blocked(reason: str) -> None:
 def record_action_failed(provider: str) -> None:
     """Increment counter for failed actions."""
     _metrics["actions_failed"][provider] = _metrics["actions_failed"].get(provider, 0) + 1
+
+
+def record_sms_delivery(status: str) -> None:
+    """Increment delivery status counter (queued/sent/delivered/failed)."""
+    _metrics["sms_delivery"][status] = _metrics["sms_delivery"].get(status, 0) + 1
+
+
+def set_dlq_depth(depth: int) -> None:
+    _metrics["dlq_depth"] = depth
+
+
+def record_retry_scheduled() -> None:
+    _metrics["retries_scheduled"] += 1
 
 
 # ──────────── Endpoints ────────────
@@ -164,5 +181,26 @@ async def metrics() -> Response:
     for prov, cnt in sorted(_metrics["actions_failed"].items()):
         lines.append(f'cacp_actions_failed_total{{provider="{prov}"}} {cnt}')
     lines.append("")
+
+    # Delivery metrics — SMS status from Twilio callbacks
+    lines += [
+        "# HELP cacp_sms_delivery_total SMS delivery status counts",
+        "# TYPE cacp_sms_delivery_total counter",
+    ]
+    for st, cnt in sorted(_metrics["sms_delivery"].items()):
+        lines.append(f'cacp_sms_delivery_total{{status="{st}"}} {cnt}')
+    lines.append("")
+
+    # DLQ depth
+    lines += [
+        "# HELP cacp_dlq_depth Current dead-letter queue depth",
+        "# TYPE cacp_dlq_depth gauge",
+        f"cacp_dlq_depth {_metrics['dlq_depth']}",
+        "",
+        "# HELP cacp_retries_scheduled_total Retries scheduled",
+        "# TYPE cacp_retries_scheduled_total counter",
+        f"cacp_retries_scheduled_total {_metrics['retries_scheduled']}",
+        "",
+    ]
 
     return Response(content="\n".join(lines), media_type="text/plain; charset=utf-8")

@@ -41,10 +41,18 @@ class Settings(BaseSettings):
     twilio_auth_token: str = ""
     twilio_from_number: str = ""
 
-    # Quiet-hours guard (24h clock, local time)
+    # Quiet-hours guard (24h clock, clinic local time)
     quiet_hours_start: int = 22
     quiet_hours_end: int = 8
+    timezone: str = "Europe/Madrid"
 
     # Per-patient SMS rate limit (messages per window)
     sms_rate_limit: int = 3
     sms_rate_window_seconds: int = 86400
+
+    # Dedup TTL for appointment+channel (seconds)
+    dedup_ttl_seconds: int = 86400
+
+    # Retry policy
+    max_retries: int = 3
+    retry_backoff_seconds: list[int] = [60, 300, 900]

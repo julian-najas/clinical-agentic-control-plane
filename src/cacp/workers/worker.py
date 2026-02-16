@@ -1,12 +1,13 @@
-"""Worker — processes queued actions with compliance rails."""
+"""Worker — processes queued actions with compliance rails, retry, DLQ."""
 
 from __future__ import annotations
 
 import json
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
+from zoneinfo import ZoneInfo
 
 if TYPE_CHECKING:
     import redis
@@ -19,6 +20,10 @@ from cacp.queue.enqueue import QUEUE_NAME
 __all__ = ["Worker", "ActionAdapter", "NoopAdapter"]
 
 logger = logging.getLogger(__name__)
+
+# Redis keys for retry and dead-letter queues
+RETRY_ZSET = "cacp:retry"
+DLQ_KEY = "cacp:dlq"
 
 
 # ---------------------------------------------------------------------------
@@ -75,9 +80,13 @@ def _check_consent(
 def _check_quiet_hours(
     quiet_start: int,
     quiet_end: int,
+    tz_name: str,
 ) -> str | None:
-    """Return blocking reason if current hour is inside quiet window."""
-    hour = datetime.now(UTC).hour
+    """Return blocking reason if current hour is inside quiet window.
+
+    Evaluates in clinic local time via *tz_name* (e.g. Europe/Madrid).
+    """
+    hour = datetime.now(ZoneInfo(tz_name)).hour
     if quiet_start <= quiet_end:
         # e.g. 02:00-06:00
         if quiet_start <= hour < quiet_end:
@@ -95,7 +104,7 @@ def _check_rate_limit(
     limit: int,
     window: int,
 ) -> str | None:
-    """Sliding-window rate limit per patient+channel. Returns reason or None."""
+    """Sliding-window rate limit per patient+channel."""
     patient_id = action.get("patient_id", "")
     channel = action.get("channel", "sms")
     if not patient_id or limit <= 0:
@@ -114,13 +123,35 @@ def _check_rate_limit(
     return None
 
 
+def _check_dedup(
+    action: dict[str, Any],
+    redis_client: redis.Redis,  # type: ignore[type-arg]
+    ttl: int,
+) -> str | None:
+    """Atomic dedup per appointment_id + channel. Returns reason or None."""
+    appointment_id = action.get("appointment_id", "")
+    channel = action.get("channel", "sms")
+    if not appointment_id:
+        return None
+    dedup_key = f"cacp:sent:{appointment_id}:{channel}"
+    acquired = redis_client.set(
+        dedup_key,
+        "1",
+        nx=True,
+        ex=ttl,
+    )  # type: ignore[union-attr]
+    if not acquired:
+        return "duplicate_action"
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Worker
 # ---------------------------------------------------------------------------
 
 
 class Worker:
-    """Blocking worker that dequeues and executes actions."""
+    """Blocking worker with compliance rails, retry + DLQ."""
 
     def __init__(
         self,
@@ -130,8 +161,12 @@ class Worker:
         consent_store: ConsentStoreProtocol | None = None,
         quiet_hours_start: int = 22,
         quiet_hours_end: int = 8,
+        timezone: str = "Europe/Madrid",
         sms_rate_limit: int = 3,
         sms_rate_window: int = 86400,
+        dedup_ttl: int = 86400,
+        max_retries: int = 3,
+        retry_backoff: list[int] | None = None,
     ) -> None:
         self._redis = redis_client
         self._adapters: dict[str, ActionAdapter] = adapters or {
@@ -141,8 +176,12 @@ class Worker:
         self._consent = consent_store
         self._quiet_start = quiet_hours_start
         self._quiet_end = quiet_hours_end
+        self._tz = timezone
         self._rate_limit = sms_rate_limit
         self._rate_window = sms_rate_window
+        self._dedup_ttl = dedup_ttl
+        self._max_retries = max_retries
+        self._backoff = retry_backoff or [60, 300, 900]
 
     # -- event helper -------------------------------------------------------
 
@@ -173,14 +212,18 @@ class Worker:
         self,
         action: dict[str, Any],
     ) -> str | None:
-        """Run compliance rails. Return reason string if blocked, else None."""
+        """Run compliance rails. Return reason string if blocked."""
         # 1. Consent
         reason = _check_consent(action, self._consent)
         if reason:
             return reason
 
-        # 2. Quiet hours
-        reason = _check_quiet_hours(self._quiet_start, self._quiet_end)
+        # 2. Quiet hours (clinic local time)
+        reason = _check_quiet_hours(
+            self._quiet_start,
+            self._quiet_end,
+            self._tz,
+        )
         if reason:
             return reason
 
@@ -196,12 +239,121 @@ class Worker:
 
         return None
 
+    # -- retry / DLQ --------------------------------------------------------
+
+    def _schedule_retry(
+        self,
+        action: dict[str, Any],
+        aggregate_id: str,
+    ) -> None:
+        """Schedule action for retry or move to DLQ."""
+        attempt = action.get("_retry_count", 0) + 1
+
+        if attempt > self._max_retries:
+            # Dead-letter
+            action["_retry_count"] = attempt
+            self._redis.rpush(
+                DLQ_KEY,
+                json.dumps(action),
+            )  # type: ignore[union-attr]
+            self._emit(
+                aggregate_id,
+                "action_dead_lettered",
+                {**action, "reason": "max_retries_exceeded"},
+            )
+            logger.warning(
+                "Action dead-lettered after %d attempts: %s",
+                attempt,
+                aggregate_id,
+            )
+            return
+
+        # Exponential backoff via ZSET score = future timestamp
+        backoff_idx = min(attempt - 1, len(self._backoff) - 1)
+        delay = self._backoff[backoff_idx]
+        fire_at = time.time() + delay
+
+        action["_retry_count"] = attempt
+        self._redis.zadd(
+            RETRY_ZSET,
+            {json.dumps(action): fire_at},
+        )  # type: ignore[union-attr]
+        self._emit(
+            aggregate_id,
+            "action_retry_scheduled",
+            {
+                "attempt": attempt,
+                "delay_seconds": delay,
+                "appointment_id": action.get("appointment_id"),
+            },
+        )
+        logger.info(
+            "Retry #%d in %ds for %s",
+            attempt,
+            delay,
+            aggregate_id,
+        )
+
+    def process_retries(self) -> int:
+        """Re-enqueue actions whose retry time has arrived.
+
+        Returns the number of actions moved back to the main queue.
+        """
+        now = time.time()
+        # Grab items with score <= now
+        items = self._redis.zrangebyscore(
+            RETRY_ZSET,
+            0,
+            now,
+        )  # type: ignore[union-attr]
+        if not items:
+            return 0
+        moved = 0
+        for raw in items:
+            self._redis.zrem(RETRY_ZSET, raw)  # type: ignore[union-attr]
+            self._redis.rpush(QUEUE_NAME, raw)  # type: ignore[union-attr]
+            moved += 1
+        logger.info("Re-enqueued %d retries", moved)
+        return moved
+
+    def dlq_size(self) -> int:
+        """Return current DLQ depth."""
+        return self._redis.llen(DLQ_KEY)  # type: ignore[union-attr,return-value]
+
+    def replay_dlq(
+        self,
+        max_items: int = 100,
+    ) -> int:
+        """Move items from DLQ back to main queue.
+
+        Resets retry count. Returns number of items replayed.
+        """
+        replayed = 0
+        for _ in range(max_items):
+            raw = self._redis.lpop(DLQ_KEY)  # type: ignore[union-attr]
+            if raw is None:
+                break
+            action: dict[str, Any] = json.loads(
+                raw,  # type: ignore[arg-type]
+            )
+            action["_retry_count"] = 0
+            self._redis.rpush(
+                QUEUE_NAME,
+                json.dumps(action),
+            )  # type: ignore[union-attr]
+            replayed += 1
+        logger.info("Replayed %d items from DLQ", replayed)
+        return replayed
+
     # -- execute ------------------------------------------------------------
 
     def _execute(self, action: dict[str, Any]) -> dict[str, Any] | None:
         """Execute a single action via adapter, emit audit event."""
         action_type = action.get("action_type", "unknown")
-        aggregate_id = action.get("appointment_id") or action.get("pr_number", "unknown")
+        aggregate_id = action.get("appointment_id") or action.get(
+            "pr_number",
+            "unknown",
+        )
         aggregate_id = str(aggregate_id)
 
         adapter = self._adapters.get(action_type)
@@ -230,6 +382,25 @@ class Worker:
             )
             return {"blocked": True, "reason": block_reason}
 
+        # -- Dedup per appointment+channel (after rails, before adapter) --
+        dedup_reason = _check_dedup(
+            action,
+            self._redis,
+            self._dedup_ttl,
+        )
+        if dedup_reason:
+            logger.info(
+                "Action deduplicated: %s channel=%s",
+                aggregate_id,
+                action.get("channel", "sms"),
+            )
+            self._emit(
+                aggregate_id,
+                "action_blocked",
+                {**action, "reason": dedup_reason},
+            )
+            return {"blocked": True, "reason": dedup_reason}
+
         # -- Execute adapter --
         try:
             result = adapter.execute(action)
@@ -247,6 +418,8 @@ class Worker:
                 "action_failed",
                 {**action, "reason": "adapter_error"},
             )
+            # Schedule retry instead of silently dropping
+            self._schedule_retry(action, aggregate_id)
             return None
 
     # -- public loop --------------------------------------------------------
@@ -262,10 +435,22 @@ class Worker:
         return action
 
     def run_loop(self, timeout: float = 5.0) -> None:
-        """Blocking loop — dequeue actions until stopped."""
-        logger.info("Worker started, listening on queue: %s", QUEUE_NAME)
+        """Blocking loop — dequeue actions until stopped.
+
+        Also checks the retry ZSET each iteration.
+        """
+        logger.info(
+            "Worker started, listening on queue: %s",
+            QUEUE_NAME,
+        )
         while True:
-            result = self._redis.blpop([QUEUE_NAME], timeout=int(timeout))
+            # Promote due retries before blocking
+            self.process_retries()
+
+            result = self._redis.blpop(
+                [QUEUE_NAME],
+                timeout=int(timeout),
+            )
             if result is None:
                 continue
             _, raw = result  # type: ignore[misc]
