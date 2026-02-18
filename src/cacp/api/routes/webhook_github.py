@@ -66,10 +66,14 @@ async def github_webhook(
     settings = request.app.state.settings
     body = await request.body()
 
-    # ── 1. Signature verification ──────────────────────────────
+    # ── 1. Signature verification (fail-closed) ────────────────
     if not settings.github_webhook_secret:
-        logger.warning("GITHUB_WEBHOOK_SECRET not set — skipping signature check")
-    elif not _verify_signature(body, settings.github_webhook_secret, x_hub_signature_256):
+        logger.error("GITHUB_WEBHOOK_SECRET not set — rejecting webhook (fail-closed)")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "message": "Webhook signature verification not configured"},
+        )
+    if not _verify_signature(body, settings.github_webhook_secret, x_hub_signature_256):
         return JSONResponse(
             status_code=401,
             content={"status": "error", "message": "Invalid signature"},

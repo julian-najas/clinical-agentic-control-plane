@@ -26,6 +26,9 @@ dev = [
     "ruff>=0.9,<1",
     "pip-audit>=2,<3",
 ]
+twilio = [
+    "twilio>=9,<10",
+]
 
 [build-system]
 requires = ["setuptools>=75"]

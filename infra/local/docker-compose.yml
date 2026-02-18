@@ -51,10 +51,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://cacp:cacp_local@postgres:5432/cacp
-      REDIS_URL: redis://redis:6379/0
-      OPA_URL: http://opa:8181
-      HMAC_SECRET: local-dev-secret-change-me
+      CACP_PG_DSN: postgresql://cacp:cacp_local@postgres:5432/cacp
+      CACP_REDIS_URL: redis://redis:6379/0
+      CACP_OPA_URL: http://opa:8181
+      CACP_HMAC_SECRET: local-dev-secret-change-me
+      CACP_ENVIRONMENT: dev
+      CACP_GITHUB_WEBHOOK_SECRET: change-me-webhook-secret
       LOG_LEVEL: debug
     depends_on:
       postgres:

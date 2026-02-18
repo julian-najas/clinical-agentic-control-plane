@@ -71,7 +71,7 @@ def _check_consent(
     patient_id = action.get("patient_id", "")
     channel = action.get("channel", "sms")
     if not patient_id:
-        return None  # cannot check → allow (fail-open for missing id)
+        return "no_patient_id"  # fail-closed: cannot verify consent without patient_id
     if not consent_store.has_consent(patient_id, channel):
         return "no_consent"
     return None

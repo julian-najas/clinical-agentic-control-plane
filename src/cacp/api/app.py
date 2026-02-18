@@ -59,6 +59,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Build event store (in-memory default; PG wired separately if pg_dsn set)
     event_store = InMemoryEventStore()
 
+    # Initialize Redis client (needed for webhook idempotency + enqueue)
+    redis_client = None
+    if settings.redis_url:
+        from cacp.queue.redis import get_redis_client
+
+        redis_client = get_redis_client(settings.redis_url)
+
     # Build orchestrator with all dependencies
     app.state.orchestrator = Orchestrator(
         settings=settings,
@@ -67,8 +74,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     app.state.settings = settings
     app.state.event_store = event_store
+    app.state.redis_client = redis_client
 
     yield
+
+    # Shutdown: close Redis
+    if redis_client:
+        redis_client.close()
 
     # Shutdown
     if github_pr:

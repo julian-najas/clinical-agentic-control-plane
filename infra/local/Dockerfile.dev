@@ -1,12 +1,11 @@
 # Dockerfile.dev — local development image (hot-reload)
-FROM python:3.12-slim
+FROM python:3.12-slim  # policy:ignore@digest — local dev only, not deployed
 
 WORKDIR /app
 
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir .
-
 COPY src/ src/
+RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir .
 
 EXPOSE 8000
 
