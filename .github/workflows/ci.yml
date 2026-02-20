@@ -62,7 +62,7 @@ jobs:
           pip install --no-deps -e .
       - run: mypy src/
 
-  test:
+  test-unit:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
@@ -85,4 +85,65 @@ jobs:
       - run: |
           pip install --require-hashes --no-deps -r requirements-dev.lock
           pip install --no-deps -e .
-      - run: pytest tests/ -v --tb=short --strict-markers
+      - run: pytest tests/unit/ -v --tb=short --strict-markers
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [test-unit]
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            objects.githubusercontent.com:443
+            agent.api.stepsecurity.io:443
+            pypi.org:443
+            files.pythonhosted.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install --require-hashes --no-deps -r requirements-dev.lock
+          pip install --no-deps -e .
+      - run: pytest tests/integration/ -v --tb=short --strict-markers
+
+  test-contract:
+    name: Contract Tests (vs clinic-gitops-config)
+    runs-on: ubuntu-latest
+    needs: [test-unit]
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            objects.githubusercontent.com:443
+            agent.api.stepsecurity.io:443
+            pypi.org:443
+            files.pythonhosted.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Checkout clinic-gitops-config (schemas)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: julian-najas/clinic-gitops-config
+          path: ../clinic-gitops-config
+          sparse-checkout: specs/
+          sparse-checkout-cone-mode: true
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install --require-hashes --no-deps -r requirements-dev.lock
+          pip install --no-deps -e .
+      - run: pytest tests/contract/ -v --tb=short --strict-markers
