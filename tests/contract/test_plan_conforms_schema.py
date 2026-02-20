@@ -102,7 +102,6 @@ class TestPlanConformsToGitopsSchema:
         )
         result = await orchestrator.process_appointment(_HIGH_RISK)
         plan = _build_signed_plan(_HIGH_RISK, result, _SECRET)
-
         jsonschema.validate(instance=plan, schema=gitops_execution_plan_schema)
 
     @pytest.mark.anyio

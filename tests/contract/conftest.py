@@ -27,25 +27,34 @@ _VENDORED_GITOPS = _REPO_ROOT / "specs" / "vendored" / "gitops"
 _LOCAL_SPECS = _REPO_ROOT / "specs" / "contracts"
 
 
+
 def _load_schema(name: str, search_paths: list[Path]) -> dict[str, Any]:
     for base in search_paths:
         candidate = base / name
         if candidate.is_file():
             return json.loads(candidate.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
-    searched = [str(p / name) for p in search_paths]
-    msg = f"Schema '{name}' not found in: {searched}"
-    raise FileNotFoundError(msg)
+    # Si estamos en CI, fail duro. Si es local, skip amigable.
+    import os
+    if os.environ.get("CI"):
+        searched = [str(p / name) for p in search_paths]
+        msg = f"Schema '{name}' not found in: {searched} (CI mode)"
+        raise FileNotFoundError(msg)
+    else:
+        pytest.skip(f"Schema '{name}' no encontrado en: {[str(p / name) for p in search_paths]}.\nClona o checkout clinic-gitops-config en ./_deps para validar contract safety.")
 
 
 # ── Fixtures ─────────────────────────────────────────────────────
 
 
+
 @pytest.fixture()
 def gitops_execution_plan_schema() -> dict[str, Any]:
-    """The execution_plan schema as defined in clinic-gitops-config."""
+    """El execution_plan schema fuente de verdad (clinic-gitops-config en ./_deps)."""
+    # Prioridad: _deps/clinic-gitops-config/specs
+    deps_path = _REPO_ROOT / "_deps" / "clinic-gitops-config" / "specs"
     return _load_schema(
         "execution_plan.schema.json",
-        [_SIBLING_GITOPS, _VENDORED_GITOPS],
+        [deps_path, _SIBLING_GITOPS, _VENDORED_GITOPS],
     )
 
 
