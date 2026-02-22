@@ -1,3 +1,11 @@
+---
+name: PR Quality Checklist
+about: Ensure PRs do not overpromise or mislead
+---
+
+- [ ] Docs do not claim capabilities not enforced in code
+- [ ] Error responses match the contract in specs/contracts/error.schema.json
+- [ ] Changelog updated with Docs/Feat/Fix as corresponde
 ## Description
 
 <!-- Short summary of the change and why it is needed. -->
@@ -25,6 +33,7 @@
 - [ ] If error responses changed, alignment with `docs/error-model.md` and `specs/contracts/error.schema.json` was verified.
 - [ ] Structured logging fields remain compliant with `docs/audit-model.md`.
 - [ ] No bypass path introduced around webhook signature verification or compliance rails.
+- [ ] Docs do not claim capabilities not enforced in code.
 
 ## Risk Notes
 

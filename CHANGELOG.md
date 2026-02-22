@@ -1,6 +1,5 @@
 # Changelog
 
-
 ## [Unreleased]
 
 ### Docs
@@ -12,11 +11,15 @@
 - Added lightweight threat model in `docs/threat-model-lite.md`.
 - Added key rotation policy in `docs/key-rotation-policy.md`.
 - Added support policy in `SUPPORT.md`.
+- Added example error payloads in `examples/errors/`.
 - Hardened PR template governance checks and CODEOWNERS coverage.
 
 ### Feat
 - Added global API exception handlers for machine-readable error payloads.
 
+### Fixed
+- Closed error-contract drift by allowing `details` as object or array in `specs/contracts/error.schema.json`.
+- Added runtime contract tests for 422/404/500 responses in `tests/contract/test_error_conforms_schema.py`.
 
 ## [0.1.0] - Initial hardening baseline
 
