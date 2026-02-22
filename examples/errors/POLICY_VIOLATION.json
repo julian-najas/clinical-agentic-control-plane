@@ -1,0 +1,15 @@
+{
+  "error_code": "POLICY_VIOLATION",
+  "message": "Policy check failed: user not authorized.",
+  "request_id": "req-5678"
+}
+{
+  "error_code": "POLICY_VIOLATION",
+  "message": "Policy denied action execute_plan",
+  "request_id": "9e7c64b8-2475-48cf-8511-b53ef4036f0e",
+  "reason_code": "POLICY_VIOLATION",
+  "details": {
+    "policy_version": "opa:sha256:7f5c...",
+    "action": "execute_plan"
+  }
+}

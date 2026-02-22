@@ -1,3 +1,6 @@
+# Namespace note
+
+Historical namespace: `cacp` se mantiene en el código por compatibilidad y legado. El repositorio es `casf-core` y actúa como security boundary.
 # casf-core
 
 > Public-by-design repository. No secrets, credentials, or PHI must be committed.
@@ -54,6 +57,8 @@ Current implementation paths:
 - Signing: `src/cacp/signing/`
 - Audit event store: `src/cacp/storage/event_store.py`
 - Execution rails (consent, quiet-hours, rate limit, dedup): `src/cacp/workers/worker.py`
+
+Historical namespace note: `cacp` is retained in code paths for backward compatibility while this repository is positioned as `casf-core` security boundary.
 
 TODO: verify in `src/cacp/` whether module naming will be normalized from `cacp` to `casf_core`.
 

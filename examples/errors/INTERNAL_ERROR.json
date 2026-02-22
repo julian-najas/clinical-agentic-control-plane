@@ -1,0 +1,10 @@
+{
+  "error_code": "INTERNAL_ERROR",
+  "message": "Unexpected server error.",
+  "request_id": "req-9999"
+}
+{
+  "error_code": "INTERNAL_ERROR",
+  "message": "Internal server error",
+  "request_id": "a2d6d3e8-fd4f-4a51-a3de-b4e0368dcb12"
+}

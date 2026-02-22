@@ -1,9 +1,9 @@
 # Changelog
 
-All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Docs
 - Added legacy-scope clarification and demo de-scoping note in `README.md`.
 - Added formal policy change checklist in `docs/policy-change-checklist.md`.
 - Extended audit contract with controlled vocabularies and data-redaction policy.
@@ -13,11 +13,17 @@ All notable changes to this project are documented here.
 - Added key rotation policy in `docs/key-rotation-policy.md`.
 - Added support policy in `SUPPORT.md`.
 - Hardened PR template governance checks and CODEOWNERS coverage.
+
+### Feat
 - Added global API exception handlers for machine-readable error payloads.
+
 
 ## [0.1.0] - Initial hardening baseline
 
+### Docs
 - Clarified architectural role.
-- Added contract versioning policy.
 - Defined observability baseline.
 - Added product-level metadata files.
+
+### Feat
+- Added contract versioning policy.
