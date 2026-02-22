@@ -1,4 +1,7 @@
+
 # Key Rotation Policy
+
+**Note:** This policy applies when `clinical-agentic-control-plane` is deployed standalone. In layered deployments, key management and rotation are typically enforced by `casf-core`.
 
 ## Scope
 

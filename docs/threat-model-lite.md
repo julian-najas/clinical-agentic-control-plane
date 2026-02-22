@@ -1,4 +1,7 @@
+
 # Threat Model (Lite)
+
+**Note:** This threat model applies when `clinical-agentic-control-plane` is deployed standalone. In layered deployments, most boundary controls are enforced by `casf-core`.
 
 ## Scope
 

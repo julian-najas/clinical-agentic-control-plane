@@ -1,57 +1,42 @@
-# Namespace note
+**In production, these endpoints are expected to be exposed behind an external security boundary (`casf-core`).**
 
-Historical namespace: `cacp` se mantiene en el código por compatibilidad y legado. El repositorio es `casf-core` y actúa como security boundary.
-# casf-core
+# clinical-agentic-control-plane (Núcleo)
 
 > Public-by-design repository. No secrets, credentials, or PHI must be committed.
 
 ## Mission
 
-Provide a security and compliance enforcement layer that acts as a zero-trust
-boundary for inbound requests before control-plane actions are proposed or
-executed.
+This repository implements the **internal control plane** for agentic workflows and compliance orchestration.
+It is not a security boundary. In production deployments, an external boundary layer (see `casf-core`) is expected to protect this surface.
 
 ## Architectural Role
 
-`casf-core` is the control boundary between external actors and the internal
-control plane. It validates, evaluates policy, enforces security rails, and
-emits auditable decisions without embedding business-domain logic.
+`clinical-agentic-control-plane` is the orchestrator and compliance engine for internal workflows, event recording, and policy enforcement.
+It does not embed business-domain logic or act as a zero-trust boundary.
 
 ## Core Guarantees
 
-- Deterministic policy evaluation.
-- Fail-closed enforcement.
-- Signed and auditable decision path.
-- Rate-limiting boundary at execution rails.
+- Deterministic policy evaluation
+- Fail-closed enforcement
+- Signed and auditable decision path
+- Rate-limiting and deduplication rails
 
 ## Non-goals
 
-- Vertical-specific domain logic.
-- Product workflow orchestration outside security/policy scope.
-- Bypassing policy/signature gates with direct execution paths.
-- Vendor lock-in at contract level.
+- Security boundary (handled by `casf-core` in layered deployments)
+- Vertical-specific domain logic
+- Product workflow orchestration outside compliance/policy scope
+- Vendor lock-in at contract level
 
-## Boundary Diagram
+## Deployment Note
 
-```text
-External Actors (API clients, webhooks)
-                |
-                v
-      +---------------------------+
-      |        casf-core          |
-      | validation + policy + sig |
-      | audit + rate-limit rails  |
-      +-------------+-------------+
-                    |
-                    v
-   Internal Control Plane / workers / adapters
-```
+**In production, these endpoints are expected to be exposed behind an external security boundary (`casf-core`).**
 
 ## Repository Scope (Current)
 
 Current implementation paths:
 
-- API boundary: `src/cacp/api/`
+- API: `src/cacp/api/`
 - Policy input and OPA client: `src/cacp/policy/`
 - Compliance gates: `src/cacp/orchestration/agents/compliance_agent.py`
 - Signing: `src/cacp/signing/`
