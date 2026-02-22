@@ -4,11 +4,15 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
-- Added buyer-oriented architectural framing in `README.md`.
-- Added formal policy governance model in `docs/policy-model.md`.
-- Added mandatory audit/logging contract in `docs/audit-model.md`.
-- Added stable error model contract in `docs/error-model.md`.
-- Hardened product metadata in `SECURITY.md` and `.github/CODEOWNERS`.
+- Added legacy-scope clarification and demo de-scoping note in `README.md`.
+- Added formal policy change checklist in `docs/policy-change-checklist.md`.
+- Extended audit contract with controlled vocabularies and data-redaction policy.
+- Added normative error schema in `specs/contracts/error.schema.json`.
+- Added error adoption roadmap in `docs/error-adoption-plan.md`.
+- Added lightweight threat model in `docs/threat-model-lite.md`.
+- Added key rotation policy in `docs/key-rotation-policy.md`.
+- Added support policy in `SUPPORT.md`.
+- Hardened PR template governance checks and CODEOWNERS coverage.
 
 ## [0.1.0] - Initial hardening baseline
 

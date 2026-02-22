@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://casf-core/specs/contracts/error.schema.json",
+  "title": "API Error",
+  "description": "Stable machine-readable error contract for boundary responses.",
+  "type": "object",
+  "required": [
+    "error_code",
+    "message",
+    "request_id"
+  ],
+  "properties": {
+    "error_code": {
+      "type": "string",
+      "enum": [
+        "POLICY_VIOLATION",
+        "RATE_LIMIT_EXCEEDED",
+        "INVALID_REQUEST",
+        "SIGNATURE_INVALID",
+        "INTERNAL_ERROR"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reason_code": {
+      "type": "string"
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

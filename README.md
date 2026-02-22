@@ -68,13 +68,25 @@ TODO: verify in `src/cacp/` whether module naming will be normalized from `cacp`
 | `GET`  | `/ready` | Dependency readiness probe |
 | `GET`  | `/metrics` | Prometheus text metrics |
 
-Additional non-core demo endpoints currently exist under `/demo/*`.
+## Legacy Scope Note
+
+Legacy clinical/demo artifacts exist in this repository (`src/cacp/demo/` and
+`/demo/*` endpoints). They are not part of the security-boundary product claim
+and should be treated as optional demonstration surface.
+
+TODO: verify in `infra/` how `/demo/*` exposure is disabled by default in production deployments.
 
 ## Governance and Contracts
 
 - Policy governance model: `docs/policy-model.md`
+- Policy change checklist: `docs/policy-change-checklist.md`
 - Audit/logging standard: `docs/audit-model.md`
 - Error contract: `docs/error-model.md`
+- Error schema: `specs/contracts/error.schema.json`
+- Error adoption plan: `docs/error-adoption-plan.md`
+- Threat model (lite): `docs/threat-model-lite.md`
+- Key rotation policy: `docs/key-rotation-policy.md`
+- Support policy: `SUPPORT.md`
 - Contract/versioning baseline: `CONTRACTS.md`
 - JSON Schemas: `specs/contracts/`
 

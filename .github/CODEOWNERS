@@ -3,6 +3,8 @@
 
 * @julian-najas
 
+# TODO: verify in .github/CODEOWNERS the addition of a backup maintainer/team.
+
 # Enforcement-critical modules
 /src/cacp/policy/ @julian-najas
 /src/cacp/signing/ @julian-najas
@@ -13,8 +15,13 @@
 
 # Governance and contracts
 /docs/policy-model.md @julian-najas
+/docs/policy-change-checklist.md @julian-najas
 /docs/audit-model.md @julian-najas
 /docs/error-model.md @julian-najas
+/docs/error-adoption-plan.md @julian-najas
+/docs/threat-model-lite.md @julian-najas
+/docs/key-rotation-policy.md @julian-najas
 /specs/contracts/ @julian-najas
 /CONTRACTS.md @julian-najas
 /SECURITY.md @julian-najas
+/SUPPORT.md @julian-najas
