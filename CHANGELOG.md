@@ -13,6 +13,7 @@ All notable changes to this project are documented here.
 - Added key rotation policy in `docs/key-rotation-policy.md`.
 - Added support policy in `SUPPORT.md`.
 - Hardened PR template governance checks and CODEOWNERS coverage.
+- Added global API exception handlers for machine-readable error payloads.
 
 ## [0.1.0] - Initial hardening baseline
 
