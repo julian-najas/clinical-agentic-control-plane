@@ -1,4 +1,4 @@
-"""Twilio delivery-status webhook — converts status callbacks into events."""
+"""Twilio delivery-status webhook: converts status callbacks into events."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import hmac
 import logging
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import JSONResponse
 
 if TYPE_CHECKING:
@@ -20,9 +20,7 @@ router = APIRouter()
 
 # Twilio status progression
 _TERMINAL_STATUSES = frozenset({"delivered", "undelivered", "failed"})
-_TRACKABLE_STATUSES = frozenset(
-    {"queued", "sent", "delivered", "undelivered", "failed"},
-)
+_TRACKABLE_STATUSES = frozenset({"queued", "sent", "delivered", "undelivered", "failed"})
 
 
 def _verify_twilio_signature(
@@ -40,11 +38,9 @@ def _verify_twilio_signature(
     data = url
     for key in sorted(params.keys()):
         data += key + params[key]
-    expected = hmac.new(
-        auth_token.encode("utf-8"),
-        data.encode("utf-8"),
-        hashlib.sha1,
-    ).digest()
+
+    expected = hmac.new(auth_token.encode("utf-8"), data.encode("utf-8"), hashlib.sha1).digest()
+
     import base64
 
     expected_b64 = base64.b64encode(expected).decode("utf-8")
@@ -67,11 +63,7 @@ def _emit_event(
             payload=payload,
         )
     except Exception:
-        logger.warning(
-            "Event store append failed for %s",
-            event_type,
-            exc_info=True,
-        )
+        logger.warning("Event store append failed for %s", event_type, exc_info=True)
 
 
 @router.post(
@@ -82,7 +74,7 @@ def _emit_event(
 async def twilio_status_callback(request: Request) -> JSONResponse:
     """Receive Twilio message status updates.
 
-    Expected POST params: MessageSid, MessageStatus, To, ErrorCode (opt).
+    Expected POST params: MessageSid, MessageStatus, To, ErrorCode (optional).
     """
     settings = request.app.state.settings
 
@@ -94,17 +86,9 @@ async def twilio_status_callback(request: Request) -> JSONResponse:
     if settings.twilio_auth_token:
         sig = request.headers.get("X-Twilio-Signature", "")
         url = str(request.url)
-        if not _verify_twilio_signature(
-            url,
-            params,
-            sig,
-            settings.twilio_auth_token,
-        ):
+        if not _verify_twilio_signature(url, params, sig, settings.twilio_auth_token):
             logger.warning("Twilio signature verification failed")
-            return JSONResponse(
-                status_code=403,
-                content={"error": "invalid_signature"},
-            )
+            raise HTTPException(status_code=401, detail="Invalid signature")
 
     message_sid = params.get("MessageSid", "")
     status = params.get("MessageStatus", "")
@@ -122,28 +106,15 @@ async def twilio_status_callback(request: Request) -> JSONResponse:
     payload: dict[str, Any] = {
         "message_sid": message_sid,
         "status": status,
-        "to_hash": hashlib.sha256(
-            to_number.encode("utf-8"),
-        ).hexdigest()[:16],
+        "to_hash": hashlib.sha256(to_number.encode("utf-8")).hexdigest()[:16],
     }
     if error_code:
         payload["error_code"] = error_code
 
     # Use message_sid as aggregate (we don't have appointment_id here)
-    event_store: EventStoreProtocol | None = getattr(
-        request.app.state,
-        "event_store",
-        None,
-    )
+    event_store: EventStoreProtocol | None = getattr(request.app.state, "event_store", None)
     _emit_event(event_store, message_sid, event_type, payload)
 
-    logger.info(
-        "Twilio status: sid=%s status=%s",
-        message_sid[:10] + "...",
-        status,
-    )
+    logger.info("Twilio status: sid=%s status=%s", message_sid[:10] + "...", status)
 
-    return JSONResponse(
-        status_code=200,
-        content={"accepted": True, "status": status},
-    )
+    return JSONResponse(status_code=200, content={"accepted": True, "status": status})

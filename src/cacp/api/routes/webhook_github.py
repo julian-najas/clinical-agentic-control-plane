@@ -1,4 +1,4 @@
-"""GitHub webhook endpoint — receives PR merge events."""
+"""GitHub webhook endpoint: receives PR merge events."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Header, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
@@ -31,14 +31,7 @@ def _verify_signature(payload_body: bytes, secret: str, signature_header: str) -
     """Verify GitHub HMAC-SHA256 webhook signature."""
     if not signature_header.startswith("sha256="):
         return False
-    expected = (
-        "sha256="
-        + hmac.new(
-            secret.encode(),
-            payload_body,
-            hashlib.sha256,
-        ).hexdigest()
-    )
+    expected = "sha256=" + hmac.new(secret.encode(), payload_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature_header)
 
 
@@ -66,41 +59,35 @@ async def github_webhook(
     settings = request.app.state.settings
     body = await request.body()
 
-    # ── 1. Signature verification (fail-closed) ────────────────
+    # 1) Signature verification (fail-closed)
     if not settings.github_webhook_secret:
-        logger.error("GITHUB_WEBHOOK_SECRET not set — rejecting webhook (fail-closed)")
-        return JSONResponse(
+        logger.error("GITHUB_WEBHOOK_SECRET not set; rejecting webhook (fail-closed)")
+        raise HTTPException(
             status_code=503,
-            content={"status": "error", "message": "Webhook signature verification not configured"},
+            detail="Webhook signature verification not configured",
         )
     if not _verify_signature(body, settings.github_webhook_secret, x_hub_signature_256):
-        return JSONResponse(
-            status_code=401,
-            content={"status": "error", "message": "Invalid signature"},
-        )
+        raise HTTPException(status_code=401, detail="Invalid signature")
 
-    # ── 2. Parse payload ───────────────────────────────────────
+    # 2) Parse payload
     try:
         payload: dict[str, Any] = json.loads(body)
-    except (json.JSONDecodeError, ValueError):
-        return JSONResponse(
-            status_code=400,
-            content={"status": "error", "message": "Invalid JSON"},
-        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from exc
 
-    # ── 3. Idempotency gate ────────────────────────────────────
+    # 3) Idempotency gate
     redis_client = getattr(request.app.state, "redis_client", None)
     if redis_client and x_github_delivery:
         idem_key = f"cacp:webhook:delivery:{x_github_delivery}"
         was_new = redis_client.set(idem_key, "1", nx=True, ex=IDEMPOTENCY_TTL)
         if not was_new:
-            logger.info("Duplicate delivery %s — skipping", x_github_delivery)
+            logger.info("Duplicate delivery %s, skipping", x_github_delivery)
             return JSONResponse(
                 status_code=200,
                 content={"status": "duplicate", "message": "Already processed"},
             )
 
-    # ── 4. Filter: only merged PRs ─────────────────────────────
+    # 4) Filter: only merged PRs
     if x_github_event != "pull_request":
         return JSONResponse(
             status_code=202,
@@ -117,7 +104,7 @@ async def github_webhook(
             content={"status": "ignored", "message": "PR not merged"},
         )
 
-    # ── 5. Validate source repo ────────────────────────────────
+    # 5) Validate source repo
     repo_name = payload.get("repository", {}).get("name", "")
     if repo_name != EXPECTED_REPO:
         logger.warning("Webhook from unexpected repo: %s", repo_name)
@@ -126,7 +113,7 @@ async def github_webhook(
             content={"status": "ignored", "message": f"Repo '{repo_name}' not tracked"},
         )
 
-    # ── 6. Extract data & emit event ───────────────────────────
+    # 6) Extract data and emit event
     pr_number = pr.get("number", 0)
     merge_sha = pr.get("merge_commit_sha", "")
     pr_title = pr.get("title", "")
@@ -148,7 +135,7 @@ async def github_webhook(
             },
         )
 
-    # ── 7. Enqueue job for worker ──────────────────────────────
+    # 7) Enqueue job for worker
     if redis_client:
         from cacp.queue.enqueue import enqueue_action
 
@@ -166,28 +153,21 @@ async def github_webhook(
 
     return JSONResponse(
         status_code=202,
-        content={
-            "status": "accepted",
-            "message": f"PR #{pr_number} merged — execution enqueued",
-        },
+        content={"status": "accepted", "message": f"PR #{pr_number} merged; execution enqueued"},
     )
 
 
 def _extract_appointment_id(title: str, body: str) -> str:
-    """Best-effort extraction of appointment_id from PR title/body.
-
-    Convention: branch is 'proposal/<uuid-prefix>' and title contains it.
-    Body may include 'appointment_id: APT-XXX'.
-    """
+    """Best-effort extraction of appointment_id from PR title/body."""
     # Try body first: "appointment_id: APT-123"
     for line in body.splitlines():
         stripped = line.strip()
         if stripped.lower().startswith("appointment_id:"):
             return stripped.split(":", 1)[1].strip()
 
-    # Fallback: extract from title like "proposal/abc123 — APT-100"
-    if "—" in title:
-        parts = title.split("—")
+    # Fallback: extract from title like "proposal/abc123 -> APT-100"
+    if "->" in title:
+        parts = title.split("->")
         if len(parts) > 1:
             return parts[-1].strip()
 

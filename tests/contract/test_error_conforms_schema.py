@@ -11,6 +11,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from cacp.api.app import create_app
+from cacp.settings import Settings
 
 
 def _load_error_schema() -> dict[str, Any]:
@@ -60,4 +61,46 @@ async def test_500_unhandled_error_conforms_local_schema() -> None:
 
     assert resp.status_code == 500
     payload = resp.json()
+    jsonschema.validate(instance=payload, schema=schema)
+
+
+@pytest.mark.anyio
+async def test_github_invalid_signature_conforms_local_schema() -> None:
+    schema = _load_error_schema()
+    app = create_app()
+    app.state.settings = Settings(github_webhook_secret="test-webhook-secret")
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/webhook/github",
+            content=b"{}",
+            headers={
+                "x-github-event": "pull_request",
+                "x-hub-signature-256": "sha256=invalid",
+                "content-type": "application/json",
+            },
+        )
+
+    assert resp.status_code == 401
+    payload = resp.json()
+    assert payload["error_code"] == "SIGNATURE_INVALID"
+    jsonschema.validate(instance=payload, schema=schema)
+
+
+@pytest.mark.anyio
+async def test_twilio_invalid_signature_conforms_local_schema() -> None:
+    schema = _load_error_schema()
+    app = create_app()
+    app.state.settings = Settings(twilio_auth_token="test-twilio-token")
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/webhook/twilio-status",
+            data={"MessageSid": "SM_TEST_123", "MessageStatus": "delivered", "To": "+34600111222"},
+            headers={"X-Twilio-Signature": "invalid"},
+        )
+
+    assert resp.status_code == 401
+    payload = resp.json()
+    assert payload["error_code"] == "SIGNATURE_INVALID"
     jsonschema.validate(instance=payload, schema=schema)

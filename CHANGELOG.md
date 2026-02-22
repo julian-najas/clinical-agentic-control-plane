@@ -19,7 +19,8 @@
 
 ### Fixed
 - Closed error-contract drift by allowing `details` as object or array in `specs/contracts/error.schema.json`.
-- Added runtime contract tests for 422/404/500 responses in `tests/contract/test_error_conforms_schema.py`.
+- Normalized webhook signature errors to the global machine-readable error contract.
+- Added runtime contract tests for 422/404/500 and webhook signature errors.
 
 ## [0.1.0] - Initial hardening baseline
 

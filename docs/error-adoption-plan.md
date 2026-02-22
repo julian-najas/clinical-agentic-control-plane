@@ -1,12 +1,3 @@
-# Error contract enforcement statement
-
-## Enforced today
-- Todas las respuestas de error principales (`422`, `403`, `401`, `429`, `500`) siguen el contrato de error documentado en `specs/contracts/error.schema.json`.
-- Se garantiza la presencia de `error_code`, `message`, `request_id`.
-
-## Target standard
-- En el futuro, todos los errores (incluyendo validaciones internas y excepciones de librerías) deberán cumplir el contrato sin excepción.
-- Se añadirá enforcement para campos opcionales (`details`, `timestamp`, etc.) y para todos los códigos HTTP.
 # Error Adoption Plan
 
 This document maps current runtime behavior to the target error contract in
@@ -25,6 +16,8 @@ This document maps current runtime behavior to the target error contract in
   - `message`
   - `request_id`
   - optional `details`
+- Webhook signature failures use `HTTPException` and now conform to the same
+  machine-readable payload contract.
 
 ### Target standard
 
@@ -39,8 +32,8 @@ This document maps current runtime behavior to the target error contract in
 | Surface | Current behavior | Target behavior | Gap |
 |---------|------------------|-----------------|-----|
 | `POST /ingest` | Validation errors normalized by global handler | `INVALID_REQUEST` payload contract | Keep covered by contract tests |
-| `POST /webhook/github` | Mixed custom responses (`401`, `400`, `503`, `202`) | Contractual error payload for error statuses | Normalize route-level JSONResponse payloads |
-| `POST /webhook/twilio-status` | Returns `403` with `{ "error": "invalid_signature" }` | `SIGNATURE_INVALID` payload contract | Align response schema |
+| `POST /webhook/github` | Error statuses normalized via `HTTPException` handlers | Contractual error payload for error statuses | Keep route-level custom error responses out |
+| `POST /webhook/twilio-status` | Signature errors normalized via `HTTPException` handlers | `SIGNATURE_INVALID` payload contract | Keep route-level custom error responses out |
 | Worker rails (`rate_limited`, `no_consent`, `quiet_hours`) | Block reason stored in events/logs | Stable reason codes + optional API exposure if surfaced | Map reasons to canonical codes |
 
 ## Sequencing
