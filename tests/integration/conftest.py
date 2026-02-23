@@ -52,10 +52,13 @@ async def client() -> AsyncClient:  # type: ignore[misc]
 
     app = create_app()
     transport = ASGITransport(app=app)  # type: ignore[arg-type]
-    async with app.router.lifespan_context(app), AsyncClient(
-        transport=transport,
-        base_url="http://test",
-    ) as ac:
+    async with (
+        app.router.lifespan_context(app),
+        AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as ac,
+    ):
         yield ac  # type: ignore[misc]
 
 

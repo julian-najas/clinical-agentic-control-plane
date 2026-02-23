@@ -132,6 +132,8 @@ jobs:
             index.docker.io:443
             auth.docker.io:443
             production.cloudflare.docker.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -182,7 +184,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: julian-najas/clinic-gitops-config
-          path: ../clinic-gitops-config
+          path: _deps/clinic-gitops-config
           sparse-checkout: specs/
           sparse-checkout-cone-mode: true
       - name: Cache pip
@@ -194,13 +196,13 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Fail-fast si falta execution_plan.schema.json
         run: |
-          if [ ! -f ../clinic-gitops-config/specs/execution_plan.schema.json ]; then
-            echo "ERROR: Schema execution_plan.schema.json no encontrado en ../clinic-gitops-config/specs/. Verifica el checkout de clinic-gitops-config."
+          if [ ! -f _deps/clinic-gitops-config/specs/execution_plan.schema.json ]; then
+            echo "ERROR: Schema execution_plan.schema.json no encontrado en _deps/clinic-gitops-config/specs/. Verifica el checkout de clinic-gitops-config."
             exit 1
           fi
       - name: Validar drift de execution_plan.schema.json
         run: |
-          cd ../clinic-gitops-config/specs
+          cd _deps/clinic-gitops-config/specs
           sha256sum execution_plan.schema.json > /tmp/sha256_gitops
           cd -
           if [ -f specs/execution_plan.schema.json ]; then

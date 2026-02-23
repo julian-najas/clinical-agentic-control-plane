@@ -162,9 +162,16 @@ class TestHmacRoundtrip:
             "version": "1.0.0",
             "environment": "dev",
             "clinic_id": "CLINIC-A",
-            "actions": [{"action_type": "send_reminder", "channel": "whatsapp",
-                         "patient_id": "P1", "appointment_id": "A1",
-                         "template": "t", "scheduled_at": "2026-03-20T08:00:00"}],
+            "actions": [
+                {
+                    "action_type": "send_reminder",
+                    "channel": "whatsapp",
+                    "patient_id": "P1",
+                    "appointment_id": "A1",
+                    "template": "t",
+                    "scheduled_at": "2026-03-20T08:00:00",
+                }
+            ],
             "risk_level": "high",
             "hmac_signature": "",
             "created_at": "2026-02-20T00:00:00+00:00",

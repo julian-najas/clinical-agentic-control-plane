@@ -27,7 +27,6 @@ _VENDORED_GITOPS = _REPO_ROOT / "specs" / "vendored" / "gitops"
 _LOCAL_SPECS = _REPO_ROOT / "specs" / "contracts"
 
 
-
 def _load_schema(name: str, search_paths: list[Path]) -> dict[str, Any]:
     for base in search_paths:
         candidate = base / name
@@ -35,6 +34,7 @@ def _load_schema(name: str, search_paths: list[Path]) -> dict[str, Any]:
             return json.loads(candidate.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
     # Si estamos en CI, fail duro. Si es local, skip amigable.
     import os
+
     if os.environ.get("CI"):
         searched = [str(p / name) for p in search_paths]
         msg = f"Schema '{name}' not found in: {searched} (CI mode)"
@@ -49,7 +49,6 @@ def _load_schema(name: str, search_paths: list[Path]) -> dict[str, Any]:
 
 
 # ── Fixtures ─────────────────────────────────────────────────────
-
 
 
 @pytest.fixture()

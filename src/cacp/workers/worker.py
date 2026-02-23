@@ -301,11 +301,11 @@ class Worker:
         """
         now = time.time()
         # Grab items with score <= now
-        items = self._redis.zrangebyscore(
+        items: list[Any] = self._redis.zrangebyscore(
             RETRY_ZSET,
             0,
             now,
-        )  # type: ignore[union-attr]
+        )  # type: ignore[union-attr,assignment]
         if not items:
             return 0
         moved = 0
