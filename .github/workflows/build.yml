@@ -1,4 +1,4 @@
-# Build — docker image build and push
+# Build - docker image build and push
 # Triggered on tags matching v*.
 
 name: Build
@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   build:
@@ -57,3 +58,5 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
