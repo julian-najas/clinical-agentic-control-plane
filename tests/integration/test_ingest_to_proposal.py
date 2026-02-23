@@ -9,10 +9,12 @@ or HMAC signing.  GitHub PR creation is disabled (no token).
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from httpx import AsyncClient
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 
 # ── Helpers ─────────────────────────────────────────────────────

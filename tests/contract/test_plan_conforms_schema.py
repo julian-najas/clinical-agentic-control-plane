@@ -21,7 +21,6 @@ from cacp.settings import Settings
 from cacp.signing.hmac import sign_payload
 from cacp.storage.event_store import InMemoryEventStore
 
-
 # ── Helpers ─────────────────────────────────────────────────────
 
 

@@ -18,7 +18,6 @@ from cacp.api.app import create_app
 from cacp.settings import Settings
 from cacp.storage.event_store import InMemoryEventStore
 
-
 # ── Deterministic settings (no external deps) ────────────────────
 
 
@@ -53,9 +52,11 @@ async def client() -> AsyncClient:  # type: ignore[misc]
 
     app = create_app()
     transport = ASGITransport(app=app)  # type: ignore[arg-type]
-    async with app.router.lifespan_context(app):
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac  # type: ignore[misc]
+    async with app.router.lifespan_context(app), AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as ac:
+        yield ac  # type: ignore[misc]
 
 
 # ── Canonical appointment fixtures ───────────────────────────────

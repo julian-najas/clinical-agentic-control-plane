@@ -40,7 +40,12 @@ def _load_schema(name: str, search_paths: list[Path]) -> dict[str, Any]:
         msg = f"Schema '{name}' not found in: {searched} (CI mode)"
         raise FileNotFoundError(msg)
     else:
-        pytest.skip(f"Schema '{name}' no encontrado en: {[str(p / name) for p in search_paths]}.\nClona o checkout clinic-gitops-config en ./_deps para validar contract safety.")
+        searched = [str(p / name) for p in search_paths]
+        skip_reason = (
+            f"Schema '{name}' no encontrado en: {searched}.\n"
+            "Clona o checkout clinic-gitops-config en ./_deps para validar contract safety."
+        )
+        pytest.skip(skip_reason)
 
 
 # ── Fixtures ─────────────────────────────────────────────────────

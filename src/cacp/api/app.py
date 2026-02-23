@@ -67,7 +67,13 @@ def _resolve_request_id(request: Request) -> str:
     return generated
 
 
-def _error_payload(error_code: str, message: str, request_id: str, *, details: Any = None) -> dict[str, Any]:
+def _error_payload(
+    error_code: str,
+    message: str,
+    request_id: str,
+    *,
+    details: Any = None,
+) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "error_code": error_code,
         "message": message,
@@ -78,8 +84,15 @@ def _error_payload(error_code: str, message: str, request_id: str, *, details: A
     return payload
 
 
-async def _http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+async def _http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = _resolve_request_id(request)
+    if not isinstance(exc, StarletteHTTPException):
+        logger.exception("Unexpected exception type for HTTP handler", exc_info=exc)
+        return JSONResponse(
+            status_code=500,
+            content=_error_payload("INTERNAL_ERROR", "Internal server error", request_id),
+        )
+
     status_code = exc.status_code
 
     if status_code in _ERROR_CODE_BY_STATUS:
@@ -89,10 +102,7 @@ async def _http_exception_handler(request: Request, exc: StarletteHTTPException)
     else:
         error_code = "INTERNAL_ERROR"
 
-    if isinstance(exc.detail, str):
-        message = exc.detail
-    else:
-        message = "Request failed"
+    message = exc.detail if isinstance(exc.detail, str) else "Request failed"
 
     return JSONResponse(
         status_code=status_code,
@@ -100,8 +110,15 @@ async def _http_exception_handler(request: Request, exc: StarletteHTTPException)
     )
 
 
-async def _validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def _validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = _resolve_request_id(request)
+    if not isinstance(exc, RequestValidationError):
+        logger.exception("Unexpected exception type for validation handler", exc_info=exc)
+        return JSONResponse(
+            status_code=500,
+            content=_error_payload("INTERNAL_ERROR", "Internal server error", request_id),
+        )
+
     return JSONResponse(
         status_code=422,
         content=_error_payload(

@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import logging
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qsl
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import JSONResponse
@@ -78,9 +79,9 @@ async def twilio_status_callback(request: Request) -> JSONResponse:
     """
     settings = request.app.state.settings
 
-    # Parse form body (Twilio sends application/x-www-form-urlencoded)
-    form = await request.form()
-    params: dict[str, str] = {k: str(v) for k, v in form.items()}
+    # Parse URL-encoded body without requiring python-multipart.
+    raw_body = (await request.body()).decode("utf-8")
+    params = dict(parse_qsl(raw_body, keep_blank_values=True))
 
     # Signature verification (skip if no auth token configured)
     if settings.twilio_auth_token:
