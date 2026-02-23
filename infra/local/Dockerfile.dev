@@ -1,10 +1,12 @@
-# Dockerfile.dev — local development image (hot-reload)
-FROM python:3.12-slim  # policy:ignore@digest — local dev only, not deployed
+# Dockerfile.dev - local development image (hot-reload)
+# policy:ignore@digest - local dev only, not deployed
+FROM python:3.12-slim
 
 WORKDIR /app
 
 COPY pyproject.toml ./
 COPY src/ src/
+# Keep src/ available before editable install (setuptools uses where=["src"]).
 RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir .
 
 EXPOSE 8000
