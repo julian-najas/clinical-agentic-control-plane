@@ -1,89 +1,129 @@
-**In production, these endpoints are expected to be exposed behind an external security boundary (`casf-core`).**
+# clinical-agentic-control-plane
 
-# clinical-agentic-control-plane (Núcleo)
+> **Public by design** — This repository is public for demo / portfolio purposes.
+> It contains **no secrets, credentials, or PHI**. Production configurations live in private infrastructure.
 
-> Public-by-design repository. No secrets, credentials, or PHI must be committed.
+**PR-first agentic control plane** for clinical no-show reduction.
 
-## Mission
+This service ingests appointments, scores risk, generates action proposals,
+signs them with HMAC, and submits them as PRs to `clinic-gitops-config`.
+Actions are **never executed without merge approval**.
 
-This repository implements the **internal control plane** for agentic workflows and compliance orchestration.
-It is not a security boundary. In production deployments, an external boundary layer (see `casf-core`) is expected to protect this surface.
+## Architecture
 
-## Architectural Role
+```
+Clinic Cloud API / CSV ──► Ingest
+                              │
+                              ▼
+                        Orchestrator
+                         ├── Risk Scorer (deterministic heuristic)
+                         ├── Revenue Agent (action sequencing)
+                         └── Compliance Agent (policy validation)
+                              │
+                              ▼
+                      HMAC Sign + PR Create ──► clinic-gitops-config
+                              │
+                     (webhook: PR merged)
+                              │
+                              ▼
+                         Worker (execute)
+                         ├── WhatsApp sender
+                         └── Twilio SMS sender
+                              │
+                              ▼
+                        Event Store (PG)
+```
 
-`clinical-agentic-control-plane` is the orchestrator and compliance engine for internal workflows, event recording, and policy enforcement.
-It does not embed business-domain logic or act as a zero-trust boundary.
+## Key principles
 
-## Core Guarantees
+- **No action without merge.** The control-plane proposes; humans (or automerge) approve.
+- **HMAC-signed proposals.** Every PR payload is signed with HMAC-SHA256.
+- **Event-sourced.** All events are appended to PostgreSQL for audit and replay.
+- **Deterministic scoring.** Risk is calculated with heuristics, not ML (until Phase 3).
+- **Fail-closed on governance.** If HMAC signing or policy validation fails, no PR is created.
 
-- Deterministic policy evaluation
-- Fail-closed enforcement
-- Signed and auditable decision path
-- Rate-limiting and deduplication rails
+## Quick start
 
-## Non-goals
+```bash
+# Local development
+cd infra/local
+docker compose up --build -d
 
-- Security boundary (handled by `casf-core` in layered deployments)
-- Vertical-specific domain logic
-- Product workflow orchestration outside compliance/policy scope
-- Vendor lock-in at contract level
+# Run tests
+pip install -e ".[dev]"
+pytest -v
 
-## Deployment Note
+# Run the service
+uvicorn cacp.api.app:app --reload --port 8080
+```
 
-**In production, these endpoints are expected to be exposed behind an external security boundary (`casf-core`).**
+## Endpoints
 
-## Repository Scope (Current)
-
-Current implementation paths:
-
-- API: `src/cacp/api/`
-- Policy input and OPA client: `src/cacp/policy/`
-- Compliance gates: `src/cacp/orchestration/agents/compliance_agent.py`
-- Signing: `src/cacp/signing/`
-- Audit event store: `src/cacp/storage/event_store.py`
-- Execution rails (consent, quiet-hours, rate limit, dedup): `src/cacp/workers/worker.py`
-
-Historical namespace note: `cacp` is retained in code paths for backward compatibility while this repository is positioned as `casf-core` security boundary.
-
-TODO: verify in `src/cacp/` whether module naming will be normalized from `cacp` to `casf_core`.
-
-## Runtime Endpoints (Existing Surface)
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/ingest` | Inbound request intake into orchestration pipeline |
-| `POST` | `/webhook/github` | Signed merge-event intake (execution trigger) |
-| `POST` | `/webhook/twilio-status` | Provider callback intake |
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/ingest` | Receive appointments (from Clinic Cloud or CSV) |
+| `POST` | `/webhook/github` | Receive PR merge events → trigger execution |
 | `GET`  | `/health` | Liveness probe |
-| `GET`  | `/ready` | Dependency readiness probe |
-| `GET`  | `/metrics` | Prometheus text metrics |
+| `GET`  | `/metrics` | Prometheus text exposition |
 
-## Legacy Scope Note
+## Inter-repo contracts
 
-Legacy clinical/demo artifacts exist in this repository (`src/cacp/demo/` and
-`/demo/*` endpoints). They are not part of the security-boundary product claim
-and should be treated as optional demonstration surface.
+This service is the **producer** side of the governance boundary.
+It generates proposals and delivers them as HMAC-signed PRs — but
+**never executes anything until a PR is merged**.
 
-TODO: verify in `infra/` how `/demo/*` exposure is disabled by default in production deployments.
+### Outbound — toward `clinic-gitops-config`
 
-## Governance and Contracts
+| What | Format | Delivery |
+|------|--------|----------|
+| Execution plans | JSON (`specs/execution_plan.schema.json`) | HMAC-SHA256 signed, opened as PR via GitHub API |
+| Message templates | JSON (`specs/template.schema.json`) | HMAC-SHA256 signed, opened as PR via GitHub API |
 
-- Policy governance model: `docs/policy-model.md`
-- Policy change checklist: `docs/policy-change-checklist.md`
-- Audit/logging standard: `docs/audit-model.md`
-- Error contract: `docs/error-model.md`
-- Error schema: `specs/contracts/error.schema.json`
-- Error adoption plan: `docs/error-adoption-plan.md`
-- Threat model (lite): `docs/threat-model-lite.md`
-- Key rotation policy: `docs/key-rotation-policy.md`
-- Support policy: `SUPPORT.md`
-- Contract/versioning baseline: `CONTRACTS.md`
-- JSON Schemas: `specs/contracts/`
+> **Signing contract**: canonical JSON (sorted keys, no extra whitespace,
+> `signature` field excluded from digest). Key sourced from `HMAC_SECRET`
+> environment variable (rotated every 90 days dev / 30 days prod).
 
-## CI/CD
+### Inbound — from `clinic-gitops-config`
 
-CI workflows are present in `.github/workflows/` and should remain mandatory for
-policy, schema, and security checks on every merge.
+| What | Mechanism |
+|------|-----------|
+| PR merge event | GitHub webhook `POST /webhook/github`. Control-plane verifies webhook signature, then dispatches the merged plan to workers for execution. |
+
+> Workers **only act on merge events** from `clinic-gitops-config`. Any other
+> source is rejected.
+
+### Dependency — `casf-core`
+
+`casf-core` (v0.13.0, scope-frozen) can optionally sit in front of this
+service as a zero-trust gateway. This service does **not** import `casf-core`
+code; it consumes it as an HTTP edge enforcer. Domain logic stays here.
+
+### Dependency — `platform-infra`
+
+`platform-infra` deploys this service via ArgoCD / Kustomize. This service
+has **no runtime dependency** on `platform-infra` — it only provides the
+container image and health endpoints that `platform-infra` expects:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /health` | Liveness probe (k8s `livenessProbe`) |
+| `GET /ready` | Readiness probe (k8s `readinessProbe`) |
+| `GET /metrics` | Prometheus scrape target |
+
+### Contract invariants
+
+1. **No action without merge** — proposals are PRs; execution requires merge webhook.
+2. **Fail-closed on signing** — if HMAC key is absent, no PR is created.
+3. **Event-sourced audit** — every ingest, proposal, merge, and execution is appended to PostgreSQL.
+4. **Deterministic scoring** — risk heuristic is reproducible; no ML until Phase 3.
+
+## Related repos
+
+| Repo | Role |
+|------|------|
+| `clinic-gitops-config` | Approval boundary — receives HMAC-signed PRs from this service |
+| `platform-infra` | Deploys this service (Docker Compose / K8s / ArgoCD) |
+| `casf-core` | Zero-trust policy gateway (optional integration) |
 
 ## License
 

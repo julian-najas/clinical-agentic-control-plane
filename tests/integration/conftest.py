@@ -18,7 +18,6 @@ from cacp.api.app import create_app
 from cacp.settings import Settings
 from cacp.storage.event_store import InMemoryEventStore
 
-
 # ── Deterministic settings (no external deps) ────────────────────
 
 

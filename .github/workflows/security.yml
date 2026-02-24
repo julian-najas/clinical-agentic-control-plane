@@ -43,7 +43,7 @@ jobs:
           pip install --no-deps -e .
 
       - name: Run pip-audit
-        run: pip-audit --strict
+        run: pip-audit --strict --skip-editable
 
   secrets-scan:
     name: Secrets Scan (gitleaks)
@@ -126,6 +126,8 @@ jobs:
             production.cloudflare.docker.com:443
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
