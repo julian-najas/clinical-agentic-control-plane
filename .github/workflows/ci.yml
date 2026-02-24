@@ -194,6 +194,10 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-dev.lock') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+      - name: Instalar dependencias de test
+        run: |
+          pip install --require-hashes --no-deps -r requirements-dev.lock
+          pip install --no-deps -e .
       - name: Fail-fast si falta execution_plan.schema.json
         run: |
           if [ ! -f _deps/clinic-gitops-config/specs/execution_plan.schema.json ]; then
@@ -214,7 +218,5 @@ jobs:
           else
             echo "WARNING: No hay schema local specs/execution_plan.schema.json para comparar drift. Solo se valida contra el remoto."
           fi
-      - name: Instalar pytest-cov
-        run: pip install pytest-cov
       - name: Ejecutar contract tests con cobertura
         run: pytest --cov=src --cov-report=term-missing tests/contract/ -v --tb=short --strict-markers
