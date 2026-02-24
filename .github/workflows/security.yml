@@ -128,6 +128,7 @@ jobs:
             files.pythonhosted.org:443
             codeload.github.com:443
             release-assets.githubusercontent.com:443
+            mirror.gcr.io:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
