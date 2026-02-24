@@ -1,0 +1,47 @@
+name: Reproducibility Fire Test
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repro:
+    name: Repro (docker compose + health)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            objects.githubusercontent.com:443
+            agent.api.stepsecurity.io:443
+            registry-1.docker.io:443
+            index.docker.io:443
+            auth.docker.io:443
+            production.cloudflare.docker.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Fire test
+        uses: ./.github/actions/compose-healthcheck
+        with:
+          project-directory: .
+          compose-file: infra/local/docker-compose.yml
+          health-url: http://127.0.0.1:8000/health
+          timeout-seconds: "180"
+          interval-seconds: "2"
+          up-flags: --build -d
+          down-flags: down -v
+          artifacts-dir: .artifacts/repro-fire-test
+          artifact-name: repro-fire-test-logs

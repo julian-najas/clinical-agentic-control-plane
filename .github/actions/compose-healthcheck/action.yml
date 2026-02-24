@@ -1,0 +1,126 @@
+name: "Compose Healthcheck"
+description: "Bring up docker compose, wait health endpoint, collect logs, and always down -v."
+
+inputs:
+  compose-file:
+    description: "Path to docker-compose file."
+    required: false
+    default: "docker-compose.yml"
+  project-directory:
+    description: "Directory where docker compose will run."
+    required: false
+    default: "."
+  profile:
+    description: "Optional docker compose profile."
+    required: false
+    default: ""
+  up-flags:
+    description: "Flags for compose up."
+    required: false
+    default: "--build -d"
+  down-flags:
+    description: "Flags for compose down."
+    required: false
+    default: "down -v"
+  health-url:
+    description: "HTTP endpoint to verify health."
+    required: false
+    default: "http://127.0.0.1:8000/health"
+  timeout-seconds:
+    description: "Maximum wait time for healthcheck."
+    required: false
+    default: "180"
+  interval-seconds:
+    description: "Seconds between health retries."
+    required: false
+    default: "2"
+  artifacts-dir:
+    description: "Directory for compose logs/artifacts."
+    required: false
+    default: ".artifacts/compose-healthcheck"
+  artifact-name:
+    description: "Artifact name in GitHub Actions."
+    required: false
+    default: "compose-healthcheck-logs"
+
+runs:
+  using: "composite"
+  steps:
+    - id: run-compose-healthcheck
+      shell: bash
+      env:
+        COMPOSE_FILE: ${{ inputs.compose-file }}
+        PROJECT_DIR: ${{ inputs.project-directory }}
+        PROFILE: ${{ inputs.profile }}
+        UP_FLAGS: ${{ inputs.up-flags }}
+        DOWN_FLAGS: ${{ inputs.down-flags }}
+        HEALTH_URL: ${{ inputs.health-url }}
+        TIMEOUT_SECONDS: ${{ inputs.timeout-seconds }}
+        INTERVAL_SECONDS: ${{ inputs.interval-seconds }}
+        ARTIFACTS_DIR: ${{ inputs.artifacts-dir }}
+      run: |
+        set +e
+        mkdir -p "${ARTIFACTS_DIR}"
+
+        compose_cmd=(docker compose -f "${COMPOSE_FILE}")
+        if [ -n "${PROFILE}" ]; then
+          compose_cmd+=(--profile "${PROFILE}")
+        fi
+
+        read -r -a up_args <<< "${UP_FLAGS}"
+        read -r -a down_args <<< "${DOWN_FLAGS}"
+
+        failed=0
+
+        pushd "${PROJECT_DIR}" >/dev/null || failed=1
+
+        if [ "${failed}" -eq 0 ]; then
+          "${compose_cmd[@]}" up "${up_args[@]}"
+          if [ "$?" -ne 0 ]; then
+            failed=1
+          fi
+        fi
+
+        if [ "${failed}" -eq 0 ]; then
+          elapsed=0
+          timeout="${TIMEOUT_SECONDS}"
+          interval="${INTERVAL_SECONDS}"
+
+          while [ "${elapsed}" -lt "${timeout}" ]; do
+            if curl -fsS "${HEALTH_URL}" >/dev/null; then
+              break
+            fi
+            sleep "${interval}"
+            elapsed=$((elapsed + interval))
+          done
+
+          if [ "${elapsed}" -ge "${timeout}" ]; then
+            echo "Healthcheck timeout: ${HEALTH_URL}" | tee "${ARTIFACTS_DIR}/healthcheck.log"
+            failed=1
+          fi
+        fi
+
+        if [ "${failed}" -ne 0 ]; then
+          "${compose_cmd[@]}" logs --no-color > "${ARTIFACTS_DIR}/compose.log" 2>&1 || true
+        fi
+
+        "${compose_cmd[@]}" "${down_args[@]}" >> "${ARTIFACTS_DIR}/teardown.log" 2>&1 || true
+
+        popd >/dev/null || true
+
+        echo "failed=${failed}" >> "${GITHUB_OUTPUT}"
+
+    - name: Upload compose logs
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.artifacts-dir }}
+        if-no-files-found: warn
+        retention-days: 14
+
+    - name: Fail if compose healthcheck failed
+      if: ${{ steps.run-compose-healthcheck.outputs.failed == '1' }}
+      shell: bash
+      run: |
+        echo "compose-healthcheck failed"
+        exit 1
