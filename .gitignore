@@ -1,15 +1,31 @@
-﻿__pycache__/
+# Python artifacts
+__pycache__/
 *.pyc
 *.pyo
-*.egg-info/
-dist/
+*.pyd
+
+# Build artifacts
 build/
+dist/
 .eggs/
 *.egg
+*.egg-info/
+
+# Tooling caches
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+
+# Virtual environments
 .venv/
 venv/
-.env
+
+# Coverage / logs
+.coverage
 *.log
+
+# Environment files (keep examples)
+.env
+.env.*
+!.env.example
+!.env.dev.example

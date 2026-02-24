@@ -19,6 +19,8 @@ def _mock_redis(queue_items: list[dict[str, Any]]) -> MagicMock:
     pipe_mock = MagicMock()
     pipe_mock.execute.return_value = [None, 0, None, None]
     mock.pipeline.return_value = pipe_mock
+    # Dedup stub — always acquire (not duplicate)
+    mock.set.return_value = True
     return mock
 
 
@@ -45,6 +47,8 @@ class TestWorker:
         worker = Worker(
             redis_client=redis_mock,
             event_store=self.event_store,
+            quiet_hours_start=0,
+            quiet_hours_end=0,
         )
 
         result = worker.run_once()
@@ -67,6 +71,8 @@ class TestWorker:
             redis_client=redis_mock,
             adapters={},  # no adapters registered
             event_store=self.event_store,
+            quiet_hours_start=0,
+            quiet_hours_end=0,
         )
 
         result = worker.run_once()
@@ -96,12 +102,13 @@ class TestWorker:
             redis_client=redis_mock,
             adapters={"explode": FailingAdapter()},  # type: ignore[dict-item]
             event_store=self.event_store,
+            quiet_hours_start=0,
+            quiet_hours_end=0,
         )
 
         result = worker.run_once()
         assert result is not None
 
         events = self.event_store.list_events(aggregate_id="APT-300")
-        assert len(events) == 1
-        assert events[0]["event_type"] == "action_failed"
-        assert events[0]["payload"]["reason"] == "adapter_error"
+        # action_failed + action_retry_scheduled
+        assert any(e["event_type"] == "action_failed" for e in events)

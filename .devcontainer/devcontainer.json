@@ -1,0 +1,50 @@
+{
+  "name": "CACP Dev Container",
+  "dockerComposeFile": "../infra/local/docker-compose.yml",
+  "service": "api",
+  "runServices": [
+    "postgres",
+    "redis",
+    "opa",
+    "api"
+  ],
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "overrideCommand": true,
+  "shutdownAction": "stopCompose",
+  "forwardPorts": [8000, 8181, 5432, 6379],
+  "portsAttributes": {
+    "8000": {
+      "label": "CACP API"
+    },
+    "8181": {
+      "label": "OPA"
+    },
+    "5432": {
+      "label": "Postgres"
+    },
+    "6379": {
+      "label": "Redis"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker",
+        "charliermarsh.ruff"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": [
+          "tests",
+          "-q"
+        ],
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "postCreateCommand": "python -m pip install -U pip && pip install --require-hashes --no-deps -r requirements-dev.lock && pip install --no-deps -e /workspace"
+}

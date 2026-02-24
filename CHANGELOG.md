@@ -1,0 +1,33 @@
+# Changelog
+
+## [Unreleased]
+
+### Docs
+- Added legacy-scope clarification and demo de-scoping note in `README.md`.
+- Added formal policy change checklist in `docs/policy-change-checklist.md`.
+- Extended audit contract with controlled vocabularies and data-redaction policy.
+- Added normative error schema in `specs/contracts/error.schema.json`.
+- Added error adoption roadmap in `docs/error-adoption-plan.md`.
+- Added lightweight threat model in `docs/threat-model-lite.md`.
+- Added key rotation policy in `docs/key-rotation-policy.md`.
+- Added support policy in `SUPPORT.md`.
+- Added example error payloads in `examples/errors/`.
+- Hardened PR template governance checks and CODEOWNERS coverage.
+
+### Feat
+- Added global API exception handlers for machine-readable error payloads.
+
+### Fixed
+- Closed error-contract drift by allowing `details` as object or array in `specs/contracts/error.schema.json`.
+- Normalized webhook signature errors to the global machine-readable error contract.
+- Added runtime contract tests for 422/404/500 and webhook signature errors.
+
+## [0.1.0] - Initial hardening baseline
+
+### Docs
+- Clarified architectural role.
+- Defined observability baseline.
+- Added product-level metadata files.
+
+### Feat
+- Added contract versioning policy.

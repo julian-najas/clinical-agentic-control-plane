@@ -22,6 +22,8 @@ def _mock_redis(
     pipe_mock = MagicMock()
     pipe_mock.execute.return_value = [None, 0, None, None]
     mock.pipeline.return_value = pipe_mock
+    # Dedup stub — always acquire (not duplicate)
+    mock.set.return_value = True
     return mock
 
 
@@ -68,6 +70,8 @@ class TestConsentRail:
             redis_client=redis_mock,
             event_store=event_store,
             consent_store=store,
+            quiet_hours_start=0,
+            quiet_hours_end=0,
         )
         result = worker.run_once()
         assert result is not None
@@ -84,6 +88,8 @@ class TestConsentRail:
             redis_client=redis_mock,
             event_store=event_store,
             consent_store=None,
+            quiet_hours_start=0,
+            quiet_hours_end=0,
         )
         result = worker.run_once()
         assert result is not None
@@ -101,12 +107,11 @@ class TestQuietHoursRail:
         event_store = InMemoryEventStore()
         redis_mock = _mock_redis([_action()])
 
-        # Patch datetime to return hour=23 (inside 22-08 window)
+        # Patch datetime.now to return hour=23 (inside 22-08 window)
         with patch("cacp.workers.worker.datetime") as mock_dt:
             mock_now = MagicMock()
             mock_now.hour = 23
             mock_dt.now.return_value = mock_now
-            mock_dt.side_effect = None
 
             worker = Worker(
                 redis_client=redis_mock,
@@ -114,6 +119,7 @@ class TestQuietHoursRail:
                 consent_store=store,
                 quiet_hours_start=22,
                 quiet_hours_end=8,
+                timezone="Europe/Madrid",
             )
             result = worker.run_once()
 
@@ -130,12 +136,11 @@ class TestQuietHoursRail:
         event_store = InMemoryEventStore()
         redis_mock = _mock_redis([_action()])
 
-        # Patch datetime to return hour=14 (outside 22-08 window)
+        # Patch datetime.now to return hour=14 (outside 22-08 window)
         with patch("cacp.workers.worker.datetime") as mock_dt:
             mock_now = MagicMock()
             mock_now.hour = 14
             mock_dt.now.return_value = mock_now
-            mock_dt.side_effect = None
 
             worker = Worker(
                 redis_client=redis_mock,
@@ -143,6 +148,7 @@ class TestQuietHoursRail:
                 consent_store=store,
                 quiet_hours_start=22,
                 quiet_hours_end=8,
+                timezone="Europe/Madrid",
             )
             result = worker.run_once()
 
@@ -177,6 +183,7 @@ class TestRateLimitRail:
                 sms_rate_limit=3,
                 quiet_hours_start=22,
                 quiet_hours_end=8,
+                timezone="Europe/Madrid",
             )
             result = worker.run_once()
 
@@ -210,6 +217,7 @@ class TestRateLimitRail:
                 sms_rate_limit=3,
                 quiet_hours_start=22,
                 quiet_hours_end=8,
+                timezone="Europe/Madrid",
             )
             result = worker.run_once()
 

@@ -1,4 +1,4 @@
-# docker-compose.yml — local development stack for clinical-agentic-control-plane
+# docker-compose.yml - local development stack for clinical-agentic-control-plane
 # Spins up PostgreSQL, Redis, OPA, and the control-plane API.
 
 services:
@@ -41,8 +41,8 @@ services:
       - /policies
     volumes:
       - ./opa/config.yaml:/etc/opa/config.yaml:ro
-      # Mount policies from clinic-gitops-config if available
-      - ../../clinic-gitops-config/environments/dev/policies/opa:/policies:ro
+      # Default in-repo policies path. Override with CACP_OPA_POLICIES_PATH for external policy repos.
+      - ${CACP_OPA_POLICIES_PATH:-./opa/policies}:/policies:ro
 
   api:
     build:
@@ -51,10 +51,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://cacp:cacp_local@postgres:5432/cacp
-      REDIS_URL: redis://redis:6379/0
-      OPA_URL: http://opa:8181
-      HMAC_SECRET: local-dev-secret-change-me
+      CACP_PG_DSN: postgresql://cacp:cacp_local@postgres:5432/cacp
+      CACP_REDIS_URL: redis://redis:6379/0
+      CACP_OPA_URL: http://opa:8181
+      CACP_HMAC_SECRET: local-dev-secret-change-me
+      CACP_ENVIRONMENT: dev
+      CACP_GITHUB_WEBHOOK_SECRET: change-me-webhook-secret
       LOG_LEVEL: debug
     depends_on:
       postgres:

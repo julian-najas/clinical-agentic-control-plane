@@ -1,12 +1,12 @@
-# Dockerfile.dev — local development image (hot-reload)
-FROM python:3.12-slim
+# Dockerfile.dev - local development image (hot-reload)
+FROM python:3.12-slim@sha256:9e01bf1ae5db7649a236da7be1e94ffbbbdd7a93f867dd0d8d5720d9e1f89fab
 
 WORKDIR /app
 
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir .
-
 COPY src/ src/
+# Keep src/ available before editable install (setuptools uses where=["src"]).
+RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir .
 
 EXPOSE 8000
 

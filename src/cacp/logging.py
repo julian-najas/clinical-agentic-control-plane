@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging as stdlib_logging
 import uuid
 from contextvars import ContextVar
 from typing import Any
@@ -59,7 +60,7 @@ def configure_logging(*, json_output: bool = True, level: str = "INFO") -> None:
     structlog.configure(
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(
-            structlog.get_level_from_name(level)  # type: ignore[operator]
+            stdlib_logging.getLevelNamesMapping().get(level.upper(), stdlib_logging.INFO)
         ),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),

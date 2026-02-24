@@ -1,0 +1,18 @@
+{
+  "error_code": "INVALID_REQUEST",
+  "message": "Field 'subject_id' is required.",
+  "request_id": "req-1234",
+  "details": {"field": "subject_id"}
+}
+{
+  "error_code": "INVALID_REQUEST",
+  "message": "Request validation failed",
+  "request_id": "d0f87d5c-4cc8-4e76-91ad-b9962c6807cc",
+  "details": [
+    {
+      "type": "missing",
+      "loc": ["body", "patient_id"],
+      "msg": "Field required"
+    }
+  ]
+}
